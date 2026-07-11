@@ -86,7 +86,7 @@ Idempotentny — ponowne dostarczenie tego samego zdarzenia nic nie zmienia.
   "totalQuestions": 0, "questionsLast30Days": 0,
   "revenuePlnTotal": 0, "revenuePlnLast30Days": 0,
   "estimatedAiCostUsd": 0.0,
-  "modelUsage": { "claude-haiku-4-5": 0, "claude-opus-4-8": 0 }
+  "modelUsage": { "claude-haiku-4-5": 0, "claude-sonnet-5": 0 }
 }
 ```
 

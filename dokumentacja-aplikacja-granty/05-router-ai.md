@@ -11,7 +11,7 @@ kosztują grosze, a pełną moc płacimy tylko przy pisaniu wniosku.
 | Rola | Model | ID modelu | Cena wejście / wyjście (za 1M tokenów) |
 |---|---|---|---|
 | Tani — proste pytania, klasyfikacja | Claude Haiku 4.5 | `claude-haiku-4-5` | $1 / $5 |
-| Mocny — pisanie wniosku, analiza dokumentacji | Claude Opus 4.8 | `claude-opus-4-8` | $5 / $25 |
+| Mocny — pisanie wniosku, analiza dokumentacji | Claude Sonnet 5 | `claude-sonnet-5` | $5 / $25 |
 
 Używać **oficjalnego SDK** `@anthropic-ai/sdk`. ID modeli wpisywać dokładnie jak
 wyżej (bez dopisków dat).
@@ -46,7 +46,7 @@ odpowiedź).
 | Klasa | Model | Parametry |
 |---|---|---|
 | SIMPLE | `claude-haiku-4-5` | `max_tokens: 2048` |
-| COMPLEX | `claude-opus-4-8` | `max_tokens: 64000`, streaming, `thinking: {type: "adaptive"}` |
+| COMPLEX | `claude-sonnet-5` | `max_tokens: 64000`, streaming, `thinking: {type: "adaptive"}` |
 
 Oba wywołania dostają **ten sam pełny kontekst**: prompt systemowy + zeskrapowane
 treści + historia rozmowy.

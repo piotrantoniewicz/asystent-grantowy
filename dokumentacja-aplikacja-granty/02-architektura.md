@@ -8,7 +8,7 @@
 | Baza danych | **SQLite lokalnie → PostgreSQL na produkcji** | SQLite nie wymaga żadnej instalacji; Prisma pozwala później przełączyć się na Postgres zmianą konfiguracji |
 | ORM | **Prisma** | Czytelny schemat bazy, migracje, dobre wsparcie w narzędziach AI |
 | Logowanie | **Auth.js (NextAuth v5), provider e-mail (magic link)** | Bez haseł; wysyłka maili przez **Resend** (darmowy plan wystarczy na start) |
-| AI | **Anthropic API, oficjalny SDK `@anthropic-ai/sdk`** | Router modeli: Haiku 4.5 / Opus 4.8 — szczegóły w `05-router-ai.md` |
+| AI | **Anthropic API, oficjalny SDK `@anthropic-ai/sdk`** | Router modeli: Haiku 4.5 / Sonnet 5 — szczegóły w `05-router-ai.md` |
 | Scraping | **fetch + cheerio** (HTML), **pdf-parse** (PDF) | Bez zewnętrznych usług płatnych; szczegóły w `06-scraping.md` |
 | Płatności | **Stripe Checkout + webhooki** | BLIK, Google Pay, karty, Przelewy24 — szczegóły w `08-platnosci.md` |
 | Style | **Tailwind CSS** | Szybkie odwzorowanie projektu graficznego, który dostarczy właściciel |

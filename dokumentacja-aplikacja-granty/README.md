@@ -37,7 +37,7 @@ organizacjom pozarządowym pisać wnioski o granty. Dokumentacja jest przygotowa
 
 - **Logowanie:** e-mailem, przez link logujący (magic link), bez haseł.
 - **Model płatności:** pakiety pytań (od 25 zł), płatność jednorazowa przez Stripe.
-- **Modele AI:** Anthropic Claude — Haiku 4.5 (proste pytania), Opus 4.8 (pisanie wniosku).
+- **Modele AI:** Anthropic Claude — Haiku 4.5 (proste pytania), Sonnet 5 (pisanie wniosku).
 - **Historia rozmów:** zapisywana — użytkownik może wrócić do pracy nad wnioskiem.
 - **Limit darmowy:** 10 pytań na konto.
 - **Praca:** najpierw wszystko lokalnie na komputerze; wdrożenie na serwer później.

@@ -30,7 +30,7 @@ Stripe Checkout. Minimum dodatkowych bibliotek.
 2. Limit pytań, ceny pakietów i uprawnienia admina sprawdzane wyłącznie po stronie
    serwera.
 3. Modele AI: router wg `dokumentacja-aplikacja-granty/05-router-ai.md`
-   (`claude-haiku-4-5` / `claude-opus-4-8`); prompt caching na zeskrapowanych
+   (`claude-haiku-4-5` / `claude-sonnet-5`); prompt caching na zeskrapowanych
    treściach obowiązkowy.
 4. Prompt systemowy czatu jest w bazie (`AppSetting.system_prompt`), nie w kodzie.
 5. Scraper: ochrona przed SSRF wg `06-scraping.md` (blokada adresów prywatnych).

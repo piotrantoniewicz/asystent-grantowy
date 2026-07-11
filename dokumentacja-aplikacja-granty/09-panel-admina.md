@@ -14,9 +14,9 @@ Karty z liczbami (dane z `GET /api/admin/stats`):
 - Zadane pytania: łącznie / w 30 dni
 - Przychód: łącznie / w 30 dni (z opłaconych `Purchase`)
 - **Szacowany koszt AI** (USD): liczony z zapisanych tokenów × cennik modeli
-  (Haiku 4.5: $1/$5 za 1M tokenów wejście/wyjście; Opus 4.8: $5/$25;
+  (Haiku 4.5: $1/$5 za 1M tokenów wejście/wyjście; Sonnet 5: $5/$25;
   tokeny z cache liczyć ×0,1 dla odczytu)
-- Podział pytań na modele (ile poszło do Haiku, ile do Opusa) — kontrola,
+- Podział pytań na modele (ile poszło do Haiku, ile do Sonneta) — kontrola,
   czy router działa sensownie
 - Prosty wykres: pytania dziennie z ostatnich 30 dni
 
