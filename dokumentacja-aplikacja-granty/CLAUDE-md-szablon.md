@@ -49,7 +49,7 @@ Stripe Checkout. Minimum dodatkowych bibliotek.
 
 (Aktualizuj po każdym etapie — wpisz datę i co ukończono.)
 
-- [x] Etap 1 — szkielet + baza (2026-07-11)
+- [ ] Etap 1 — szkielet + baza
 - [ ] Etap 2 — logowanie
 - [ ] Etap 3 — czat + router AI
 - [ ] Etap 4 — scraping
