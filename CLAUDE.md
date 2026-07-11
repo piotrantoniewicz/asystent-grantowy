@@ -50,7 +50,7 @@ Stripe Checkout. Minimum dodatkowych bibliotek.
 (Aktualizuj po każdym etapie — wpisz datę i co ukończono.)
 
 - [x] Etap 1 — szkielet + baza (2026-07-11)
-- [ ] Etap 2 — logowanie
+- [x] Etap 2 — logowanie (2026-07-11, wymaga RESEND_API_KEY do pełnego testu wysyłki maila)
 - [ ] Etap 3 — czat + router AI
 - [ ] Etap 4 — scraping
 - [ ] Etap 5 — płatności
