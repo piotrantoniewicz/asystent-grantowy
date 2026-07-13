@@ -9,7 +9,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
 }
 
 model User {
@@ -19,7 +19,6 @@ model User {
   createdAt              DateTime  @default(now())
   freeQuestionsUsed      Int      @default(0)
   paidQuestionsRemaining Int      @default(0)
-  isAdmin                Boolean  @default(false)
 
   accounts      Account[]
   sessions      Session[]
@@ -144,7 +143,7 @@ enum PurchaseStatus {
 model Purchase {
   id               String         @id @default(cuid())
   userId           String
-  stripeSessionId  String         @unique
+  stripeSessionId  String?        @unique
   packageName      String
   questionsGranted Int
   amountPln        Int
@@ -157,5 +156,11 @@ model Purchase {
 model AppSetting {
   key       String   @id
   value     String
+  updatedAt DateTime @updatedAt
+}
+
+model FreeQuota {
+  id        String   @id            // "device:<uuid>" lub "ip:<hash>:<RRRR-MM-DD>"
+  used      Int      @default(0)
   updatedAt DateTime @updatedAt
 }

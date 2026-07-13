@@ -8,20 +8,40 @@ const PUBLIC_PATHS = [
   "/cookies",
 ];
 
+const DEVICE_COOKIE = "ag_device";
+
 export default auth((req) => {
   const { pathname } = req.nextUrl;
 
-  const isPublic =
-    PUBLIC_PATHS.some((path) => pathname.startsWith(path)) ||
-    pathname.startsWith("/api/auth");
+  let response: NextResponse;
 
-  if (isPublic || req.auth) {
-    return NextResponse.next();
+  if (pathname.startsWith("/api/")) {
+    response = NextResponse.next();
+  } else {
+    const isPublic =
+      PUBLIC_PATHS.some((path) => pathname.startsWith(path)) ||
+      pathname.startsWith("/api/auth");
+
+    if (isPublic || req.auth) {
+      response = NextResponse.next();
+    } else {
+      const signInUrl = new URL("/logowanie", req.nextUrl.origin);
+      signInUrl.searchParams.set("callbackUrl", pathname);
+      response = NextResponse.redirect(signInUrl);
+    }
   }
 
-  const signInUrl = new URL("/logowanie", req.nextUrl.origin);
-  signInUrl.searchParams.set("callbackUrl", pathname);
-  return NextResponse.redirect(signInUrl);
+  if (!req.cookies.get(DEVICE_COOKIE)) {
+    response.cookies.set(DEVICE_COOKIE, crypto.randomUUID(), {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 400,
+    });
+  }
+
+  return response;
 });
 
 export const config = {

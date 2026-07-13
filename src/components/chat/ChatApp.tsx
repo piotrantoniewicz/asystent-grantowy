@@ -60,6 +60,17 @@ export default function ChatApp({
     setMessages([]);
   }
 
+  async function handleDeleteConversation(id: string) {
+    if (!confirm("Czy na pewno chcesz usunąć tę rozmowę?")) return;
+
+    await fetch(`/api/conversations/${id}`, { method: "DELETE" });
+    setConversations((prev) => prev.filter((c) => c.id !== id));
+    if (activeId === id) {
+      setActiveId(null);
+      setMessages([]);
+    }
+  }
+
   async function handleSend() {
     const text = input.trim();
     if (!text || isSending) return;
@@ -72,6 +83,13 @@ export default function ChatApp({
       conversationId = conversation.id;
       setConversations((prev) => [conversation, ...prev]);
       setActiveId(conversation.id);
+    }
+
+    if (messages.length === 0) {
+      const newTitle = text.slice(0, 60);
+      setConversations((prev) =>
+        prev.map((c) => (c.id === conversationId ? { ...c, title: newTitle } : c)),
+      );
     }
 
     const userMessage: Message = {
@@ -90,13 +108,9 @@ export default function ChatApp({
         body: JSON.stringify({ conversationId, message: text }),
       });
 
-      if (res.status === 403) {
+      if (res.status === 403 || res.status === 429 || res.status === 400) {
         const data = await res.json().catch(() => null);
-        setLimitError(
-          data?.error === "Wykorzystano limit pytań."
-            ? "Wykorzystano limit pytań. Kup pakiet, aby kontynuować."
-            : "Nie można wysłać wiadomości.",
-        );
+        setLimitError(data?.error ?? "Nie można wysłać wiadomości.");
         setIsSending(false);
         return;
       }
@@ -142,15 +156,28 @@ export default function ChatApp({
         </button>
         <div className="flex-1 space-y-1 overflow-y-auto">
           {conversations.map((c) => (
-            <button
+            <div
               key={c.id}
-              onClick={() => setActiveId(c.id)}
-              className={`w-full truncate rounded-md px-3 py-2 text-left text-sm hover:bg-gray-100 ${
-                c.id === activeId ? "bg-gray-100 font-medium" : ""
+              className={`group flex items-center rounded-md hover:bg-gray-100 ${
+                c.id === activeId ? "bg-gray-100" : ""
               }`}
             >
-              {c.title}
-            </button>
+              <button
+                onClick={() => setActiveId(c.id)}
+                className={`flex-1 truncate px-3 py-2 text-left text-sm ${
+                  c.id === activeId ? "font-medium" : ""
+                }`}
+              >
+                {c.title}
+              </button>
+              <button
+                onClick={() => handleDeleteConversation(c.id)}
+                aria-label="Usuń rozmowę"
+                className="px-2 text-gray-400 opacity-0 hover:text-red-600 group-hover:opacity-100"
+              >
+                ×
+              </button>
+            </div>
           ))}
         </div>
         {remaining && (
