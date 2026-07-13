@@ -88,7 +88,7 @@ STRIPE_SECRET_KEY="sk_test_..."
 STRIPE_WEBHOOK_SECRET="whsec_..."
 NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY="pk_test_..."
 NEXT_PUBLIC_APP_URL="http://localhost:3000"
-ADMIN_EMAILS="piotr.antoniewicz@gmail.com"
+ADMIN_EMAILS="twoj@email.pl"
 ```
 
 ## Bezpieczeństwo — wymagania minimalne
