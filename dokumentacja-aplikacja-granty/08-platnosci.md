@@ -37,9 +37,11 @@ Stripe dobierać je automatycznie (BLIK pokaże się polskim klientom sam).
 ## Przepływ płatności
 
 1. Użytkownik klika pakiet na stronie `/pakiety` (lub w komunikacie o wyczerpaniu limitu).
-2. `POST /api/checkout` tworzy: rekord `Purchase(status: pending)` + sesję Stripe
-   Checkout z `client_reference_id = userId`, `metadata: { purchaseId, packageId }`
-   i adresami powrotu `success_url` / `cancel_url`.
+2. `POST /api/checkout` tworzy: rekord `Purchase(status: pending)` (pole
+   `stripeSessionId` na razie puste — dlatego w schemacie jest opcjonalne),
+   następnie sesję Stripe Checkout z `client_reference_id = userId`,
+   `metadata: { purchaseId, packageId }` i adresami powrotu `success_url` /
+   `cancel_url`, po czym dopisuje `stripeSessionId` do rekordu `Purchase`.
 3. Przeglądarka przechodzi na stronę Stripe → użytkownik płaci (np. BLIK-iem).
 4. Stripe wysyła webhook `checkout.session.completed` na `POST /api/stripe/webhook`.
 5. Webhook (po weryfikacji podpisu): znajduje `Purchase` po `metadata.purchaseId`,
@@ -59,6 +61,13 @@ może zamknąć przeglądarkę przed powrotem, a płatność i tak przeszła).
    (polecenie wypisze `whsec_…` do `.env.local`).
 3. Testowe płatności: karta `4242 4242 4242 4242`; BLIK ma w trybie testowym
    przycisk symulacji autoryzacji.
+4. **Obowiązkowy test automatyczny (vitest): idempotencja webhooka** — dwukrotne
+   dostarczenie tego samego zdarzenia `checkout.session.completed` dodaje pytania
+   tylko raz. Błąd w tym miejscu kosztuje realne pieniądze, dlatego jako jedyny
+   fragment logiki płatności MUSI mieć test.
+5. Uwaga: middleware (`src/proxy.ts`) przepuszcza `/api/*` bez logowania — webhook
+   działa bez dodatkowej konfiguracji; jego jedynym zabezpieczeniem jest
+   weryfikacja podpisu Stripe.
 
 ## Faktury / paragony i podatki
 

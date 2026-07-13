@@ -1,7 +1,8 @@
 # CLAUDE.md — instrukcje projektu (szablon)
 
-> Skopiuj ten plik do głównego folderu projektu pod nazwą `CLAUDE.md`.
-> Narzędzia AI do kodowania czytają go automatycznie na starcie każdej sesji.
+> **UWAGA — plik historyczny.** Projekt ma już własny `CLAUDE.md` w głównym
+> folderze i to TAMTEN plik jest aktualny i wiążący (ten szablon nie jest
+> aktualizowany). Nie kopiuj go ponownie.
 
 ## O projekcie
 

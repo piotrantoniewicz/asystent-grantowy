@@ -1,9 +1,9 @@
 # 09 — Panel administratora
 
 Dostępny pod `/admin`. Widzą go wyłącznie zalogowani użytkownicy, których e-mail
-jest na liście `ADMIN_EMAILS` (zmienna środowiskowa) — przy logowaniu takiego
-adresu ustawiane jest `User.isAdmin = true`. Pozostali dostają 404 (nie 403 —
-nie zdradzamy, że panel istnieje).
+jest na liście `ADMIN_EMAILS` (zmienna środowiskowa) — sprawdzanej po stronie
+serwera przy każdym żądaniu; w bazie NIE ma pola `isAdmin`. Pozostali dostają
+404 (nie 403 — nie zdradzamy, że panel istnieje).
 
 ## Zakładki
 

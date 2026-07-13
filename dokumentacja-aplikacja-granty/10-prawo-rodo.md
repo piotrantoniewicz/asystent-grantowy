@@ -40,7 +40,13 @@ Treści stron trzymać jako pliki Markdown w repo (łatwa edycja), renderowane n
 
 ## Cookies
 
-Aplikacja używa wyłącznie **cookies niezbędnych** (sesja logowania Auth.js).
+Aplikacja używa wyłącznie **cookies niezbędnych**:
+- sesja logowania Auth.js,
+- `ag_device` — identyfikator urządzenia (httpOnly, 400 dni) służący wyłącznie
+  zapobieganiu nadużyciom darmowego limitu pytań (bezpieczeństwo usługi —
+  uzasadniony interes, art. 6 ust. 1 lit. f RODO; wymienić na `/cookies`
+  i w polityce prywatności).
+
 Nie dodajemy analityki ani marketingu w wersji 1 — dzięki temu:
 - baner cookies może być prostą informacją („Używamy wyłącznie plików cookie
   niezbędnych do działania serwisu — logowania i bezpieczeństwa.") z przyciskiem

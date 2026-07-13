@@ -10,7 +10,9 @@ zapisaniem zmian w Git (patrz sekcja o GitHubie na dole).
 2. Załóż konta i zdobądź klucze (zapiszesz je potem w `.env.local`):
    - **Anthropic** (console.anthropic.com) → klucz API + doładowanie kilku dolarów,
    - **Stripe** (stripe.com) → klucze testowe, na razie bez aktywacji firmy,
-   - **Resend** (resend.com) → klucz API do wysyłki maili logowania.
+   - **Resend** (resend.com) → klucz API do wysyłki maili logowania,
+   - **Neon** (neon.tech) → darmowa baza PostgreSQL; skopiuj connection string
+     (potrzebny od Etapu 3.5).
 3. Przygotuj plik z projektem graficznym (dostarczysz go w Etapie 6).
 
 ## Etap 1 — Szkielet projektu i baza danych
@@ -35,6 +37,15 @@ historii, licznik 10 darmowych pytań.
 **Test:** rozmowa działa, odpowiedzi pojawiają się płynnie; pytanie „jaka będzie
 pogoda" jest odrzucane; po 10 pytaniach pojawia się blokada.
 
+## Etap 3.5 — Poprawki i zabezpieczenia (WYKONAĆ PRZED Etapem 4)
+Kompletna instrukcja krok po kroku: **`12-etap-3-5-poprawki.md`** — przejście na
+PostgreSQL (Neon), atomowe liczenie pytań, ochrona darmowego limitu przed
+zakładaniem wielu kont z jednego komputera (ciasteczko urządzenia + limit IP),
+rate limit, limit długości wiadomości, poprawki obsługi błędów czatu i middleware,
+porządki w schemacie bazy, pierwsze testy automatyczne.
+
+**Test:** lista testów przy każdym kroku w `12-etap-3-5-poprawki.md`.
+
 ## Etap 4 — Scraping
 Pola na adres organizacji i konkursu, crawler + PDF-y wg 06-scraping.md,
 podsumowanie w czacie, treści w kontekście AI z prompt cachingiem.
@@ -45,9 +56,11 @@ na pytania o wymogi konkursu, cytując dokumentację.
 
 ## Etap 5 — Płatności
 Stripe Checkout wg 08-platnosci.md: strona /pakiety, checkout, webhook,
-doliczanie pytań. Testy przez Stripe CLI.
+doliczanie pytań. Testy przez Stripe CLI. Obowiązkowo test automatyczny
+idempotencji webhooka (sekcja „Testowanie lokalne" w 08-platnosci.md).
 
-**Test:** wyczerp limit → kup pakiet testową kartą 4242… → pytania doliczone.
+**Test:** wyczerp limit → kup pakiet testową kartą 4242… → pytania doliczone;
+ponowne dostarczenie tego samego webhooka nie dolicza drugi raz.
 
 ## Etap 6 — Wygląd
 Dostarcz plik graficzny i poproś o odwzorowanie wyglądu w całej aplikacji
@@ -62,9 +75,10 @@ Wg 10-prawo-rodo.md: trzy strony, stopka, baner cookies, checkbox przy zakupie,
 ostrzeżenie pod czatem. Przejdź całą checklistę z tamtego pliku.
 
 ## Etap 9 — Wdrożenie (gdy wszystko działa lokalnie)
-Rekomendacja: **Vercel** (hosting Next.js, darmowy start) + **Neon** (PostgreSQL,
-darmowy start) — bez własnego VPS. Do tego: domena, produkcyjne klucze Stripe
-(wymaga aktywacji konta — dane firmy), webhook produkcyjny, zweryfikowana domena
+Rekomendacja: **Vercel** (hosting Next.js, darmowy start). Baza to już Neon
+(od Etapu 3.5) — na produkcję użyj osobnej gałęzi/projektu Neon, nie tej samej
+bazy co do pracy lokalnej. Do tego: domena, produkcyjne klucze Stripe (wymaga
+aktywacji konta — dane firmy), webhook produkcyjny, zweryfikowana domena
 w Resend. Ten etap zaplanuj z narzędziem AI osobno, gdy przyjdzie czas.
 
 ---

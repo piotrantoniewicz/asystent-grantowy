@@ -1,7 +1,8 @@
 # 03 — Baza danych
 
-Schemat dla Prisma (SQLite lokalnie, PostgreSQL na produkcji). Poniżej opis tabel;
-dokładny plik `schema.prisma` powstanie w Etapie 1 planu pracy na tej podstawie.
+Schemat dla Prisma (PostgreSQL — Neon, ta sama baza lokalnie i na produkcji;
+od Etapu 3.5, wcześniej było SQLite). Poniżej opis tabel; dokładny plik
+`schema.prisma` jest w `prisma/schema.prisma`.
 
 ## Tabele
 
@@ -13,7 +14,9 @@ dokładny plik `schema.prisma` powstanie w Etapie 1 planu pracy na tej podstawie
 | createdAt | datetime | data rejestracji |
 | freeQuestionsUsed | int, domyślnie 0 | ile z 10 darmowych pytań zużyto |
 | paidQuestionsRemaining | int, domyślnie 0 | pozostałe pytania z kupionych pakietów |
-| isAdmin | boolean, domyślnie false | dostęp do panelu admina |
+
+Uprawnienia admina NIE są w bazie — jedynym źródłem jest zmienna środowiskowa
+`ADMIN_EMAILS` (sprawdzana przy każdym żądaniu po stronie serwera).
 
 (+ tabele wymagane przez Auth.js: `Account`, `Session`, `VerificationToken` —
 generowane standardowo przez adapter Prisma.)
@@ -64,12 +67,25 @@ generowane standardowo przez adapter Prisma.)
 |---|---|---|
 | id | string (cuid) | klucz główny |
 | userId | string → User | |
-| stripeSessionId | string, unikalny | id sesji Stripe Checkout (chroni przed podwójnym zaliczeniem) |
+| stripeSessionId | string, **opcjonalny**, unikalny | id sesji Stripe Checkout; puste przy tworzeniu rekordu, uzupełniane zaraz po utworzeniu sesji (rekord Purchase powstaje PRZED sesją, bo sesja dostaje `metadata.purchaseId`) |
 | packageName | string | np. `pakiet-50` |
 | questionsGranted | int | ile pytań dodano |
 | amountPln | int | kwota w groszach (2500 = 25 zł) |
 | status | enum: `pending` / `paid` / `failed` | |
 | createdAt | datetime | |
+
+### FreeQuota — ochrona darmowego limitu przed nadużyciami
+| Pole | Typ | Opis |
+|---|---|---|
+| id | string, klucz główny | `device:<uuid z ciasteczka ag_device>` albo `ip:<solony hash IP>:<RRRR-MM-DD>` |
+| used | int, domyślnie 0 | zużyte darmowe pytania dla tego klucza |
+| updatedAt | datetime | |
+
+Darmowe pytanie wymaga jednocześnie: wolnej puli użytkownika (`freeQuestionsUsed
+< limit`), wolnej puli urządzenia (`device:` — wspólny limit dla wszystkich kont
+na tym komputerze, równy limitowi darmowemu) i dziennej puli IP (`ip:` — maks.
+30 darmowych pytań dziennie). Płatne pytania omijają tę tabelę. Surowego adresu
+IP nie zapisujemy — tylko pierwsze 16 znaków hex SHA-256 z `ip + AUTH_SECRET`.
 
 ### AppSetting — ustawienia edytowalne z panelu admina
 | Pole | Typ | Opis |
@@ -93,8 +109,12 @@ User 1—∞ Purchase
 ## Zasady
 
 - Usunięcie rozmowy usuwa kaskadowo jej wiadomości i zeskrapowane źródła.
-- Zliczanie pytań: przy każdej wiadomości `user` serwer sprawdza
-  `freeQuestionsUsed < limit` **lub** `paidQuestionsRemaining > 0`; po odpowiedzi
-  zwiększa/zmniejsza odpowiedni licznik w jednej transakcji.
+- Zliczanie pytań — model **rezerwacji**: PRZED wywołaniem AI serwer atomowo
+  „pobiera" pytanie (warunkowe `updateMany` w jednej transakcji: licznik
+  użytkownika + `FreeQuota` urządzenia i IP dla ścieżki darmowej, albo dekrement
+  `paidQuestionsRemaining` dla płatnej). Zwykłe „sprawdź, potem zapisz" ma wyścig:
+  dwa równoległe żądania przechodzą kontrolę limitu. Zwrot rezerwacji następuje
+  tylko przy odmowie modelu (`refusal`) lub błędzie API zanim dotarł pierwszy
+  fragment odpowiedzi. Szczegóły implementacji: `12-etap-3-5-poprawki.md`.
 - Tokeny (`inputTokens`/`outputTokens`) zapisywane po każdej odpowiedzi — panel
   admina liczy z nich koszty.

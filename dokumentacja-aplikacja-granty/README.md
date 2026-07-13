@@ -31,6 +31,7 @@ organizacjom pozarządowym pisać wnioski o granty. Dokumentacja jest przygotowa
 | `09-panel-admina.md` | Panel administratora: statystyki, edycja promptu |
 | `10-prawo-rodo.md` | RODO, polityka prywatności, cookies, regulamin — polskie prawo |
 | `11-plan-pracy.md` | Plan budowy krok po kroku + podstawy GitHuba |
+| `12-etap-3-5-poprawki.md` | Instrukcja wykonawcza Etapu 3.5: Postgres, limity, ochrona przed nadużyciami |
 | `CLAUDE-md-szablon.md` | Szablon pliku CLAUDE.md do głównego folderu projektu |
 
 ## Najważniejsze decyzje (podjęte 2026-07-11)
@@ -41,3 +42,16 @@ organizacjom pozarządowym pisać wnioski o granty. Dokumentacja jest przygotowa
 - **Historia rozmów:** zapisywana — użytkownik może wrócić do pracy nad wnioskiem.
 - **Limit darmowy:** 10 pytań na konto.
 - **Praca:** najpierw wszystko lokalnie na komputerze; wdrożenie na serwer później.
+
+## Decyzje uzupełniające (2026-07-13, przegląd po Etapie 3)
+
+- **Baza:** PostgreSQL (Neon, darmowy plan) od Etapu 3.5 — także lokalnie
+  (migracje Prisma są zależne od typu bazy; zmiana na końcu byłaby bolesna).
+- **Ochrona darmowego limitu:** ciasteczko urządzenia `ag_device` + wspólna pula
+  darmowych pytań na urządzenie + dzienny limit na adres IP (tabela `FreeQuota`).
+- **Router AI:** rozmowa z wczytaną dokumentacją konkursu → zawsze Sonnet
+  (jeden cache zamiast dwóch); klasyfikator tylko w rozmowach bez dokumentów.
+- **Scraping:** synchronicznie ze strumieniowanym postępem (zgodność z hostingiem
+  serverless); `unpdf` zamiast `pdf-parse`; budżet treści ~100 tys. tokenów.
+- **Limity ochronne czatu:** wiadomość maks. 50 tys. znaków; 4 pytania/minutę;
+  atomowa rezerwacja pytania przed wywołaniem AI.

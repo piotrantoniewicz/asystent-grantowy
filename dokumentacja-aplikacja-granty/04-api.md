@@ -4,6 +4,10 @@ Wszystkie endpointy to Next.js API routes w `src/app/api/`. Jeśli nie zaznaczon
 inaczej — wymagają zalogowanego użytkownika i zwracają JSON. Błędy zawsze w formacie
 `{ "error": "czytelny komunikat po polsku" }` z odpowiednim kodem HTTP.
 
+Middleware (`src/proxy.ts`) NIE przekierowuje żądań `/api/*` — każdy endpoint sam
+sprawdza sesję i zwraca 401 JSON. Dzięki temu publiczne endpointy (webhook Stripe,
+lista pakietów) działają bez wyjątków w middleware.
+
 ## Autoryzacja
 
 Obsługiwana przez Auth.js (magic link) — standardowe endpointy `/api/auth/*`
@@ -21,13 +25,20 @@ Główny endpoint rozmowy. **Odpowiedź strumieniowana** (SSE / ReadableStream).
 
 Kolejność działań na serwerze:
 1. Sprawdź sesję użytkownika (401 jeśli brak).
-2. Sprawdź limit pytań (403 + `{ "error": "limit", "buyUrl": "/pakiety" }` jeśli wyczerpany).
-3. Zapisz wiadomość użytkownika do bazy.
-4. Zbuduj kontekst: prompt systemowy (z `AppSetting`) + zeskrapowane treści rozmowy
+2. Walidacja treści: maks. 50 000 znaków (400 jeśli dłużej).
+3. Sprawdź, że rozmowa istnieje i należy do użytkownika (404).
+4. Rate limit: maks. 4 pytania użytkownika na 60 s (429).
+5. **Atomowa rezerwacja pytania** (patrz `03-baza-danych.md`): darmowe wymaga
+   puli użytkownika + urządzenia (`ag_device`) + IP; inaczej płatne; gdy brak —
+   403 + `{ "error": "Wykorzystano limit pytań.", "buyUrl": "/pakiety" }`.
+6. Zapisz wiadomość użytkownika do bazy.
+7. Zbuduj kontekst: prompt systemowy (z `AppSetting`) + zeskrapowane treści rozmowy
    (z cache_control) + historia wiadomości.
-5. Router wybiera model (patrz `05-router-ai.md`) i wywołuje Anthropic API ze streamingiem.
-6. Strumieniuj tekst do przeglądarki; po zakończeniu zapisz odpowiedź, model,
-   tokeny i zaktualizuj licznik pytań (jedna transakcja).
+8. Router wybiera model (patrz `05-router-ai.md`) i wywołuje Anthropic API ze streamingiem.
+9. Strumieniuj tekst do przeglądarki; po zakończeniu zapisz odpowiedź, model
+   i tokeny. Zwrot rezerwacji tylko przy `refusal` lub błędzie API przed pierwszym
+   fragmentem odpowiedzi; błędów zapisu do bazy po udanej odpowiedzi nie pokazujemy
+   użytkownikowi (tylko log serwera).
 
 ### `GET /api/conversations` — lista rozmów użytkownika (id, tytuł, data).
 ### `POST /api/conversations` — utwórz nową rozmowę.
@@ -44,11 +55,21 @@ Uruchamia pobieranie strony. Nie liczy się jako pytanie.
 { "conversationId": "…", "url": "https://…", "kind": "organization" | "grant" }
 ```
 
-Odpowiedź natychmiastowa: `{ "sourceId": "…", "status": "pending" }`.
-Pobieranie działa w tle (w ramach tego samego procesu); frontend odpytuje status.
+**Odpowiedź strumieniowana** (jak czat): scraping wykonuje się **synchronicznie
+w ramach tego żądania**, a serwer na bieżąco strumieniuje linie postępu
+(np. `{"event":"page","url":"…"}` po jednej linii JSON), na końcu linię
+`{"event":"done","sourceId":"…","summary":"…"}` albo `{"event":"error", …}`.
+Frontend czyta strumień i pokazuje postęp — **bez** odpytywania o status.
+
+Dlaczego tak: na hostingu serverless (Vercel) funkcja kończy życie po odesłaniu
+odpowiedzi — „praca w tle w tym samym procesie" by tam nie działała. Trasa musi
+mieć `export const maxDuration = 300` (limit planu darmowego Vercel z Fluid
+compute), a limity stron (patrz `06-scraping.md`) są dobrane tak, by zmieścić się
+w tym czasie.
 
 ### `GET /api/scrape/[sourceId]`
-Status pobierania: `{ "status": "pending" | "done" | "error", "summary": "…",
+Zapasowy odczyt stanu źródła (np. po odświeżeniu strony):
+`{ "status": "pending" | "done" | "error", "summary": "…",
 "pages": [{ "url", "title", "contentType" }] }`.
 
 ## Płatności
@@ -77,7 +98,7 @@ Idempotentny — ponowne dostarczenie tego samego zdarzenia nic nie zmienia.
 { "email": "…", "freeQuestionsRemaining": 4, "paidQuestionsRemaining": 50 }
 ```
 
-## Panel administratora (wymagają `isAdmin`; 403 dla pozostałych)
+## Panel administratora (e-mail zalogowanego musi być na liście `ADMIN_EMAILS`; pozostali dostają **404** — nie zdradzamy, że endpoint istnieje)
 
 ### `GET /api/admin/stats`
 ```json

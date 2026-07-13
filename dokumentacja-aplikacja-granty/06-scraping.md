@@ -17,14 +17,20 @@ Cel: KOMPLETNA dokumentacja konkursu — to podstawa całej rozmowy.
   `zalaczniki`, `harmonogram`, `kryteria`).
 - **Pobierz wszystkie linkowane pliki PDF** (regulaminy, wzory wniosków, karty oceny)
   — także z innych domen, jeśli link prowadzi bezpośrednio do PDF-a.
-- Limity: maks. **30 podstron HTML** i **15 plików PDF**, maks. 10 MB na plik.
+- Limity: maks. **20 podstron HTML** i **10 plików PDF**, maks. 8 MB na plik.
+  (Limity dobrane tak, żeby całość zmieściła się w czasie jednego żądania na
+  hostingu serverless — patrz `04-api.md`, `POST /api/scrape`.)
+- Łączny budżet treści: **~100 000 tokenów** (szacunek: znaki ÷ 3,5). Powyżej —
+  przycinaj najmniej istotne strony (HTML przed PDF-ami regulaminów) i poinformuj
+  o tym w podsumowaniu.
 
 ## Przetwarzanie treści
 
 - HTML → czysty tekst przez `cheerio`: usunąć `<nav>`, `<footer>`, `<script>`,
   `<style>`, menu, stopki, banery cookies. Zachować nagłówki (jako `#`, `##`),
   listy i tabele (jako tekst).
-- PDF → tekst przez `pdf-parse`. Jeśli PDF nie zawiera warstwy tekstowej (skan),
+- PDF → tekst przez `unpdf` (NIE `pdf-parse` — pakiet nieutrzymywany). Jeśli PDF
+  nie zawiera warstwy tekstowej (skan),
   zapisać stronę ze statusem błędu i poinformować w podsumowaniu: „Plik X wygląda
   na skan — nie udało się odczytać treści, przepisz kluczowe wymogi ręcznie do czatu".
 - Każdą stronę zapisać jako `ScrapedPage` (url, tytuł, tekst).
@@ -46,8 +52,10 @@ Podsumowanie pokazuje się w czacie jako wiadomość asystenta, z pytaniem:
   `AsystentGrantowy/1.0 (+https://twojadomena.pl)`.
 - **Szanować robots.txt** dla crawlingu podstron (adres podany wprost przez
   użytkownika pobieramy zawsze — to jego świadoma decyzja).
-- Grzeczne tempo: maks. 2 równoległe pobrania, 500 ms przerwy między żądaniami
-  do tej samej domeny, timeout 15 s na stronę.
+- Grzeczne tempo: maks. 2 równoległe pobrania, 300 ms przerwy między żądaniami
+  do tej samej domeny, timeout 10 s na stronę. Scraping wykonuje się synchronicznie
+  w żądaniu `POST /api/scrape` ze strumieniowanym postępem (patrz `04-api.md`);
+  trasa musi mieć `export const maxDuration = 300`.
 - **Ochrona przed SSRF** (krytyczne): przed pobraniem rozwiązać nazwę domeny
   i odrzucić adresy prywatne/lokalne (`127.0.0.0/8`, `10.0.0.0/8`, `172.16.0.0/12`,
   `192.168.0.0/16`, `169.254.0.0/16`, `::1`, `localhost`). Akceptować tylko
@@ -62,7 +70,7 @@ Podsumowanie pokazuje się w czacie jako wiadomość asystenta, z pytaniem:
 1. Użytkownik wkleja adres (dedykowane pole nad czatem lub sam link w czacie —
    frontend wykrywa URL i pyta: „strona organizacji czy konkursu?").
 2. W czacie pojawia się pasek postępu: „Przeglądam stronę… znaleziono X podstron,
-   Y dokumentów PDF".
+   Y dokumentów PDF" — dane z linii postępu strumieniowanych przez `POST /api/scrape`.
 3. Po zakończeniu — podsumowanie (jak wyżej).
 4. Błąd (strona nie odpowiada, blokada): czytelny komunikat + rada, np. „Możesz
    też wkleić treść regulaminu bezpośrednio do czatu".
