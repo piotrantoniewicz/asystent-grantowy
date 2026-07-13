@@ -16,7 +16,11 @@ export async function GET(
     where: { id },
     include: {
       messages: { orderBy: { createdAt: "asc" } },
-      scrapedSources: { include: { pages: true } },
+      scrapedSources: {
+        include: {
+          pages: { select: { url: true, title: true, contentType: true } },
+        },
+      },
     },
   });
 
