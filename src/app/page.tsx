@@ -13,18 +13,24 @@ export default async function Home() {
   });
 
   return (
-    <div className="flex h-screen flex-col">
-      <header className="flex items-center justify-between border-b border-gray-200 px-4 py-2">
-        <h1 className="text-sm font-semibold">Asystent Wniosków Grantowych</h1>
-        <div className="flex items-center gap-3 text-sm text-gray-500">
-          <span>{session.user.email}</span>
+    <div className="flex h-screen flex-col bg-background">
+      <header className="flex items-center justify-between gap-3 border-b border-border bg-surface px-4 py-2.5">
+        <h1 className="flex min-w-0 items-center gap-2 text-sm font-semibold text-foreground">
+          <span aria-hidden>🌱</span>
+          <span className="truncate">
+            <span className="sm:hidden">Asystent Grantowy</span>
+            <span className="hidden sm:inline">Asystent Wniosków Grantowych</span>
+          </span>
+        </h1>
+        <div className="flex flex-shrink-0 items-center gap-3 text-sm text-muted">
+          <span className="hidden truncate sm:inline">{session.user.email}</span>
           <form
             action={async () => {
               "use server";
               await signOut({ redirectTo: "/logowanie" });
             }}
           >
-            <button type="submit" className="hover:text-gray-900">
+            <button type="submit" className="whitespace-nowrap hover:text-foreground">
               Wyloguj się
             </button>
           </form>

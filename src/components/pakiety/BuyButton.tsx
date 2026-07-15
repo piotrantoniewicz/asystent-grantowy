@@ -29,15 +29,15 @@ export default function BuyButton({ packageId }: { packageId: string }) {
   }
 
   return (
-    <div className="flex flex-col items-stretch gap-1">
+    <div className="flex w-full flex-col items-stretch gap-1">
       <button
         onClick={handleClick}
         disabled={isLoading}
-        className="rounded-md bg-black px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 disabled:opacity-50"
+        className="w-full rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-hover disabled:opacity-50"
       >
         {isLoading ? "Przekierowuję…" : "Kup"}
       </button>
-      {error && <p className="text-xs text-red-600">{error}</p>}
+      {error && <p className="text-xs text-danger">{error}</p>}
     </div>
   );
 }
