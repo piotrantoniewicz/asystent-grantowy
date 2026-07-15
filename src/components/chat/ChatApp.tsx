@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
 type Conversation = {
@@ -78,6 +79,7 @@ export default function ChatApp({
   const [isSending, setIsSending] = useState(false);
   const [isThinking, setIsThinking] = useState(false);
   const [limitError, setLimitError] = useState<string | null>(null);
+  const [limitErrorBuyUrl, setLimitErrorBuyUrl] = useState<string | null>(null);
   const [remaining, setRemaining] = useState<{
     freeQuestionsRemaining: number;
     paidQuestionsRemaining: number;
@@ -229,6 +231,7 @@ export default function ChatApp({
     if (!text || isSending) return;
 
     setLimitError(null);
+    setLimitErrorBuyUrl(null);
     const conversationId = await ensureConversationId(
       messages.length === 0 ? text.slice(0, 60) : undefined,
     );
@@ -254,6 +257,7 @@ export default function ChatApp({
       if (res.status === 403 || res.status === 429 || res.status === 400) {
         const data = await res.json().catch(() => null);
         setLimitError(data?.error ?? "Nie można wysłać wiadomości.");
+        setLimitErrorBuyUrl(data?.buyUrl ?? null);
         return;
       }
 
@@ -391,7 +395,10 @@ export default function ChatApp({
         {remaining && (
           <p className="border-t border-gray-200 pt-2 text-xs text-gray-500">
             Pytania: {remaining.freeQuestionsRemaining} darmowych +{" "}
-            {remaining.paidQuestionsRemaining} kupionych
+            {remaining.paidQuestionsRemaining} kupionych ·{" "}
+            <Link href="/pakiety" className="underline hover:no-underline">
+              Kup pakiet
+            </Link>
           </p>
         )}
       </aside>
@@ -470,6 +477,14 @@ export default function ChatApp({
         {limitError && (
           <p className="mx-auto mb-2 max-w-2xl rounded-md bg-red-50 px-3 py-2 text-center text-sm text-red-700">
             {limitError}
+            {limitErrorBuyUrl && (
+              <>
+                {" "}
+                <Link href={limitErrorBuyUrl} className="underline hover:no-underline">
+                  Kup pakiet pytań
+                </Link>
+              </>
+            )}
           </p>
         )}
 
