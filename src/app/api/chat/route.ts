@@ -191,6 +191,10 @@ export async function POST(request: Request) {
               modelUsed: model,
               inputTokens: finalMessage.usage.input_tokens,
               outputTokens: finalMessage.usage.output_tokens,
+              cacheCreationInputTokens:
+                finalMessage.usage.cache_creation_input_tokens ?? null,
+              cacheReadInputTokens:
+                finalMessage.usage.cache_read_input_tokens ?? null,
             },
           });
           await prisma.conversation.update({

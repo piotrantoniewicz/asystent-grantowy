@@ -25,3 +25,19 @@ export async function getFreeQuestionsLimit(): Promise<number> {
     ? parsed
     : DEFAULT_FREE_QUESTIONS_LIMIT;
 }
+
+export async function setSystemPrompt(value: string): Promise<void> {
+  await prisma.appSetting.upsert({
+    where: { key: "system_prompt" },
+    create: { key: "system_prompt", value },
+    update: { value },
+  });
+}
+
+export async function setFreeQuestionsLimit(value: number): Promise<void> {
+  await prisma.appSetting.upsert({
+    where: { key: "free_questions_limit" },
+    create: { key: "free_questions_limit", value: String(value) },
+    update: { value: String(value) },
+  });
+}

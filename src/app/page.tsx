@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { auth, signOut } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import ChatApp from "@/components/chat/ChatApp";
@@ -23,6 +24,11 @@ export default async function Home() {
           </span>
         </h1>
         <div className="flex flex-shrink-0 items-center gap-3 text-sm text-muted">
+          {session.user.isAdmin && (
+            <Link href="/admin" className="whitespace-nowrap hover:text-foreground">
+              Admin
+            </Link>
+          )}
           <span className="hidden truncate sm:inline">{session.user.email}</span>
           <form
             action={async () => {

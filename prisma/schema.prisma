@@ -81,14 +81,16 @@ enum MessageRole {
 }
 
 model Message {
-  id             String      @id @default(cuid())
-  conversationId String
-  role           MessageRole
-  content        String
-  modelUsed      String?
-  inputTokens    Int?
-  outputTokens   Int?
-  createdAt      DateTime    @default(now())
+  id                       String      @id @default(cuid())
+  conversationId           String
+  role                     MessageRole
+  content                  String
+  modelUsed                String?
+  inputTokens              Int?
+  outputTokens             Int?
+  cacheCreationInputTokens Int?
+  cacheReadInputTokens     Int?
+  createdAt                DateTime    @default(now())
 
   conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 }
