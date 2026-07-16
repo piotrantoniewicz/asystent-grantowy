@@ -24,24 +24,29 @@ export async function POST(
     );
   }
 
-  const user = await prisma.user.findUnique({
-    where: { id },
-    select: { email: true, paidQuestionsRemaining: true },
-  });
-  if (!user) {
+  const result = await prisma.$transaction(
+    async (tx) => {
+      const user = await tx.user.findUnique({
+        where: { id },
+        select: { email: true, paidQuestionsRemaining: true },
+      });
+      if (!user) return null;
+      const newRemaining = Math.max(0, user.paidQuestionsRemaining + questions);
+      await tx.user.update({
+        where: { id },
+        data: { paidQuestionsRemaining: newRemaining },
+      });
+      return { email: user.email, newRemaining };
+    },
+    { isolationLevel: "Serializable" },
+  );
+  if (!result) {
     return NextResponse.json({ error: "Nie znaleziono użytkownika." }, { status: 404 });
   }
 
-  const newRemaining = Math.max(0, user.paidQuestionsRemaining + questions);
-
-  await prisma.user.update({
-    where: { id },
-    data: { paidQuestionsRemaining: newRemaining },
-  });
-
   console.log(
-    `[admin] ${session.user.email} skorygował pytania użytkownika ${user.email}: ${questions > 0 ? "+" : ""}${questions} (pozostało: ${newRemaining})`,
+    `[admin] ${session.user.email} skorygował pytania użytkownika ${result.email}: ${questions > 0 ? "+" : ""}${questions} (pozostało: ${result.newRemaining})`,
   );
 
-  return NextResponse.json({ paidQuestionsRemaining: newRemaining });
+  return NextResponse.json({ paidQuestionsRemaining: result.newRemaining });
 }

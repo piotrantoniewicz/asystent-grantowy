@@ -41,6 +41,36 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: (error as Error).message }, { status: 400 });
   }
 
+  const MAX_SOURCES_PER_CONVERSATION = 5;
+  const MAX_SCRAPES_PER_HOUR = 10;
+
+  const sourcesInConversation = await prisma.scrapedSource.count({
+    where: { conversationId },
+  });
+  if (sourcesInConversation >= MAX_SOURCES_PER_CONVERSATION) {
+    return NextResponse.json(
+      {
+        error:
+          "W tej rozmowie można przeanalizować maksymalnie 5 stron. Zacznij nową rozmowę.",
+      },
+      { status: 400 },
+    );
+  }
+
+  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+  const recentScrapes = await prisma.scrapedSource.count({
+    where: {
+      createdAt: { gte: oneHourAgo },
+      conversation: { userId },
+    },
+  });
+  if (recentScrapes >= MAX_SCRAPES_PER_HOUR) {
+    return NextResponse.json(
+      { error: "Za dużo analiz stron w krótkim czasie. Odczekaj godzinę." },
+      { status: 429 },
+    );
+  }
+
   const source = await prisma.scrapedSource.create({
     data: { conversationId, kind, rootUrl: safeUrl.toString(), status: "pending" },
   });

@@ -10,8 +10,11 @@ export function deviceQuotaKey(deviceId: string): string {
 }
 
 export function ipQuotaKey(ip: string, date: Date): string {
+  const secret = process.env.AUTH_SECRET;
+  if (!secret) throw new Error("Brak AUTH_SECRET w zmiennych środowiskowych.");
+
   const hash = createHash("sha256")
-    .update(ip + process.env.AUTH_SECRET)
+    .update(ip + secret)
     .digest("hex")
     .slice(0, 16);
   const day = date.toISOString().slice(0, 10);
@@ -83,7 +86,11 @@ export async function reserveQuestion(params: {
       });
 
       if (result === "free") return "free";
-    } catch {
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "";
+      if (message !== "device-exhausted" && message !== "ip-exhausted") {
+        throw error;
+      }
       // ścieżka darmowa wyczerpana (urządzenie lub IP) — przejdź do płatnej
     }
   } else {

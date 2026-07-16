@@ -7,8 +7,12 @@ async function getOrSeedSetting(key: string, defaultValue: string) {
   const existing = await prisma.appSetting.findUnique({ where: { key } });
   if (existing) return existing.value;
 
-  await prisma.appSetting.create({ data: { key, value: defaultValue } });
-  return defaultValue;
+  const setting = await prisma.appSetting.upsert({
+    where: { key },
+    create: { key, value: defaultValue },
+    update: {},
+  });
+  return setting.value;
 }
 
 export async function getSystemPrompt(): Promise<string> {

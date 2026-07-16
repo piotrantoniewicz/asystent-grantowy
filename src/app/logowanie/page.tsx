@@ -31,10 +31,28 @@ export default async function LogowaniePage({
         <form
           action={async (formData) => {
             "use server";
-            await signIn("resend", {
-              email: formData.get("email"),
-              redirectTo: callbackUrl || "/",
+            const email = String(formData.get("email") ?? "")
+              .trim()
+              .toLowerCase();
+            if (!email) return;
+
+            // Limit 10 maili dziennie na adres — ochrona przed spamem przez Resend.
+            const { createHash } = await import("node:crypto");
+            const { prisma } = await import("@/lib/db");
+            const day = new Date().toISOString().slice(0, 10);
+            const hash = createHash("sha256").update(email).digest("hex").slice(0, 16);
+            const key = `login:${hash}:${day}`;
+
+            const quota = await prisma.freeQuota.upsert({
+              where: { id: key },
+              create: { id: key, used: 1 },
+              update: { used: { increment: 1 } },
             });
+            if (quota.used > 10) {
+              return;
+            }
+
+            await signIn("resend", { email, redirectTo: callbackUrl || "/" });
           }}
           className="space-y-3"
         >

@@ -15,6 +15,8 @@ import {
   truncateForClassifier,
 } from "@/lib/quota";
 
+export const maxDuration = 300;
+
 export async function POST(request: Request) {
   const session = await auth();
   if (!session?.user?.id) {
@@ -78,12 +80,21 @@ export async function POST(request: Request) {
   const deviceId = (await cookies()).get("ag_device")?.value ?? null;
   const ip = getClientIp(request);
 
-  const reservation = await reserveQuestion({
-    userId,
-    deviceId,
-    ip,
-    freeLimit: freeQuestionsLimit,
-  });
+  let reservation: Awaited<ReturnType<typeof reserveQuestion>>;
+  try {
+    reservation = await reserveQuestion({
+      userId,
+      deviceId,
+      ip,
+      freeLimit: freeQuestionsLimit,
+    });
+  } catch (error) {
+    console.error("Błąd rezerwacji pytania:", error);
+    return NextResponse.json(
+      { error: "Chwilowy problem z serwisem. Spróbuj za chwilę." },
+      { status: 500 },
+    );
+  }
 
   if (reservation === "no-quota") {
     return NextResponse.json(
@@ -123,10 +134,24 @@ export async function POST(request: Request) {
 
   const hasScrapedDocumentation = conversation.scrapedSources.length > 0;
 
-  const scrapedContent = conversation.scrapedSources
-    .flatMap((source) => source.pages)
-    .map((page) => `### ${page.title} (${page.url})\n${page.textContent}`)
-    .join("\n\n");
+  const MAX_SCRAPED_CONTEXT_CHARS = 600_000; // ~170k tokenów
+
+  let scrapedBudget = MAX_SCRAPED_CONTEXT_CHARS;
+  const scrapedParts: string[] = [];
+  for (const source of conversation.scrapedSources) {
+    for (const page of source.pages) {
+      if (scrapedBudget <= 0) break;
+      const part = `### ${page.title} (${page.url})\n${page.textContent}`;
+      if (part.length > scrapedBudget) {
+        scrapedParts.push(part.slice(0, scrapedBudget));
+        scrapedBudget = 0;
+      } else {
+        scrapedParts.push(part);
+        scrapedBudget -= part.length;
+      }
+    }
+  }
+  const scrapedContent = scrapedParts.join("\n\n");
 
   const modelClass = hasScrapedDocumentation
     ? ("COMPLEX" as const)
@@ -156,7 +181,19 @@ export async function POST(request: Request) {
     model,
     max_tokens: maxTokens,
     system: systemBlocks,
-    messages: [...history, { role: "user", content: messageText }],
+    messages: [
+      ...history,
+      {
+        role: "user",
+        content: [
+          {
+            type: "text",
+            text: messageText,
+            cache_control: { type: "ephemeral" },
+          } satisfies Anthropic.TextBlockParam,
+        ],
+      },
+    ],
     ...(modelClass === "COMPLEX" ? { thinking: { type: "adaptive" as const } } : {}),
   });
 

@@ -3,6 +3,12 @@ import type Stripe from "stripe";
 import { prisma } from "@/lib/db";
 import { applyCheckoutSessionCompleted } from "./webhook";
 
+if (!process.env.DATABASE_URL?.includes("test")) {
+  throw new Error(
+    "Test webhooka wymaga testowej bazy danych. Ustaw DATABASE_URL wskazujący na bazę z 'test' w nazwie (np. osobny branch w Neon).",
+  );
+}
+
 describe("applyCheckoutSessionCompleted", () => {
   it("dolicza pytania tylko raz przy dwukrotnym dostarczeniu tego samego zdarzenia", async () => {
     const user = await prisma.user.create({

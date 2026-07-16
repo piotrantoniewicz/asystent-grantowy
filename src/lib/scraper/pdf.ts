@@ -8,7 +8,7 @@ export type ExtractedPdf =
  * Wyciąga tekst z PDF-a przez `unpdf` (nie `pdf-parse` — patrz 06-scraping.md).
  * Skany bez warstwy tekstowej zwracają błąd, żeby poinformować o tym w podsumowaniu.
  */
-export async function extractPdfText(buffer: ArrayBuffer): Promise<ExtractedPdf> {
+export async function extractPdfText(buffer: Uint8Array): Promise<ExtractedPdf> {
   try {
     const pdf = await getDocumentProxy(new Uint8Array(buffer));
     const { text } = await extractText(pdf, { mergePages: true });

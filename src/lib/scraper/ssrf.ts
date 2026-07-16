@@ -9,6 +9,12 @@ const BLOCKED_V4_RANGES: [string, number][] = [
   ["192.168.0.0", 16],
   ["169.254.0.0", 16],
   ["0.0.0.0", 8],
+  ["100.64.0.0", 10], // CGNAT
+  ["192.0.0.0", 24], // IETF
+  ["192.0.2.0", 24], // TEST-NET
+  ["198.18.0.0", 15], // benchmarking
+  ["224.0.0.0", 4], // multicast
+  ["240.0.0.0", 4], // reserved + broadcast
 ];
 
 function ipv4ToInt(ip: string): number {
@@ -28,15 +34,17 @@ function isBlockedV4(ip: string): boolean {
 
 function isBlockedV6(ip: string): boolean {
   const normalized = ip.toLowerCase();
+
+  // Adresy IPv4 mapowane na IPv6 (::ffff:1.2.3.4) — oceniaj regułami IPv4.
+  const mapped = normalized.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
+  if (mapped) return isBlockedV4(mapped[1]);
+
   return (
     normalized === "::1" ||
     normalized === "::" ||
     normalized.startsWith("fe80:") || // link-local
     normalized.startsWith("fc") || // unique local fc00::/7
-    normalized.startsWith("fd") ||
-    normalized.startsWith("::ffff:127.") ||
-    normalized.startsWith("::ffff:10.") ||
-    normalized.startsWith("::ffff:169.254.")
+    normalized.startsWith("fd")
   );
 }
 
@@ -52,6 +60,10 @@ export class UnsafeUrlError extends Error {}
 /**
  * Sprawdza, że URL jest http(s) i nie rozwiązuje się do adresu prywatnego/lokalnego.
  * Wywoływać przed KAŻDYM pobraniem, także po przekierowaniach (patrz 06-scraping.md).
+ *
+ * Znane ograniczenie (świadomie akceptowane): między tym sprawdzeniem a właściwym
+ * `fetch` nazwa domeny jest rozwiązywana po raz drugi, więc teoretycznie możliwy jest
+ * atak DNS-rebinding. Pełna ochrona wymaga przypięcia IP w warstwie HTTP.
  */
 export async function assertSafeUrl(rawUrl: string): Promise<URL> {
   let url: URL;

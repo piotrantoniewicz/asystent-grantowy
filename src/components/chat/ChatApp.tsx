@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 type Conversation = {
   id: string;
@@ -85,6 +87,8 @@ export default function ChatApp({
     paidQuestionsRemaining: number;
   } | null>(null);
 
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
   const [orgUrlInput, setOrgUrlInput] = useState("");
   const [grantUrlInput, setGrantUrlInput] = useState("");
   const [isScraping, setIsScraping] = useState(false);
@@ -120,6 +124,7 @@ export default function ChatApp({
     setActiveId(conversation.id);
     setMessages([]);
     setSources([]);
+    setSidebarOpen(false);
   }
 
   async function handleDeleteConversation(id: string) {
@@ -193,11 +198,17 @@ export default function ChatApp({
 
         for (const line of lines) {
           if (!line.trim()) continue;
-          const event = JSON.parse(line) as
+
+          let event:
             | { event: "page"; url: string; contentType: "html" | "pdf" }
             | { event: "skip"; url: string; reason: string }
             | { event: "done"; sourceId: string; summary: string; trimmed: boolean }
             | { event: "error"; error: string };
+          try {
+            event = JSON.parse(line);
+          } catch {
+            continue;
+          }
 
           if (event.event === "page") {
             setScrapeProgress((prev) => ({
@@ -306,7 +317,20 @@ export default function ChatApp({
 
   return (
     <div className="flex h-full bg-background">
-      <aside className="hidden w-72 flex-shrink-0 flex-col gap-4 overflow-y-auto border-r border-border bg-surface p-3 sm:flex">
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-black/30 sm:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      <aside
+        className={`w-72 flex-shrink-0 flex-col gap-4 overflow-y-auto border-r border-border bg-surface p-3 sm:flex ${
+          sidebarOpen
+            ? "fixed inset-y-0 left-0 z-40 flex sm:static sm:z-auto"
+            : "hidden"
+        }`}
+      >
         <button
           onClick={handleNewConversation}
           className="rounded-lg bg-primary px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-hover"
@@ -375,7 +399,10 @@ export default function ChatApp({
               }`}
             >
               <button
-                onClick={() => setActiveId(c.id)}
+                onClick={() => {
+                  setActiveId(c.id);
+                  setSidebarOpen(false);
+                }}
                 className={`flex-1 truncate px-3 py-2 text-left text-sm text-foreground ${
                   c.id === activeId ? "font-medium" : ""
                 }`}
@@ -404,6 +431,14 @@ export default function ChatApp({
       </aside>
 
       <div className="flex flex-1 flex-col">
+        <button
+          onClick={() => setSidebarOpen(true)}
+          aria-label="Otwórz menu"
+          className="m-3 self-start rounded-lg border border-border bg-surface px-3 py-1.5 text-sm font-medium text-foreground sm:hidden"
+        >
+          ☰ Menu
+        </button>
+
         <div className="flex-1 overflow-y-auto p-4">
           {timeline.length === 0 && !isScraping && (
             <p className="mt-10 text-center text-sm text-muted">
@@ -414,16 +449,23 @@ export default function ChatApp({
           <div className="mx-auto flex max-w-2xl flex-col gap-3">
             {timeline.map((item) =>
               item.type === "message" ? (
-                <div
-                  key={item.message.id}
-                  className={`whitespace-pre-wrap rounded-2xl px-4 py-2 text-sm ${
-                    item.message.role === "user"
-                      ? "ml-auto max-w-[80%] bg-primary text-white"
-                      : "mr-auto max-w-[80%] bg-primary-soft text-foreground"
-                  }`}
-                >
-                  {item.message.content}
-                </div>
+                item.message.role === "user" ? (
+                  <div
+                    key={item.message.id}
+                    className="ml-auto max-w-[80%] whitespace-pre-wrap rounded-2xl bg-primary px-4 py-2 text-sm text-white"
+                  >
+                    {item.message.content}
+                  </div>
+                ) : (
+                  <div
+                    key={item.message.id}
+                    className="mr-auto max-w-[80%] rounded-2xl bg-primary-soft px-4 py-2 text-sm text-foreground [&_a]:underline [&_li]:ml-4 [&_ol]:list-decimal [&_p]:mb-2 [&_p:last-child]:mb-0 [&_ul]:list-disc"
+                  >
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                      {item.message.content}
+                    </ReactMarkdown>
+                  </div>
+                )
               ) : (
                 <div
                   key={item.source.id}

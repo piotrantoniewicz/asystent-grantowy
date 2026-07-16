@@ -1,8 +1,9 @@
 import { prisma } from "@/lib/db";
 
+// Ceny standardowe; do 2026-08-31 Sonnet 5 ma cenę wprowadzającą 2/10 USD za MTok.
 const PRICING_USD_PER_MTOK: Record<string, { input: number; output: number }> = {
   "claude-haiku-4-5": { input: 1, output: 5 },
-  "claude-sonnet-5": { input: 5, output: 25 },
+  "claude-sonnet-5": { input: 3, output: 15 },
 };
 
 const CACHE_WRITE_MULTIPLIER = 1.25;
