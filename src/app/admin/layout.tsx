@@ -18,7 +18,7 @@ export default async function AdminLayout({
   if (!session) notFound();
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-full bg-background">
       <div className="mx-auto flex max-w-4xl flex-col gap-6 p-6">
         <div className="flex items-center justify-between">
           <h1 className="text-lg font-semibold text-foreground">

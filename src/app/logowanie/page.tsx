@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { signIn } from "@/lib/auth";
 
 export default async function LogowaniePage({
@@ -8,7 +9,7 @@ export default async function LogowaniePage({
   const { callbackUrl, error } = await searchParams;
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-background px-4">
+    <main className="flex min-h-full items-center justify-center bg-background px-4">
       <div className="w-full max-w-sm space-y-6 rounded-2xl border border-border bg-surface p-8 shadow-sm">
         <div className="space-y-2 text-center">
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary-soft text-xl">
@@ -51,6 +52,21 @@ export default async function LogowaniePage({
             Wyślij link logujący
           </button>
         </form>
+
+        <p className="text-center text-xs text-muted">
+          Logując się akceptujesz{" "}
+          <Link href="/regulamin" className="text-primary underline hover:no-underline">
+            Regulamin
+          </Link>{" "}
+          i{" "}
+          <Link
+            href="/polityka-prywatnosci"
+            className="text-primary underline hover:no-underline"
+          >
+            Politykę prywatności
+          </Link>
+          .
+        </p>
       </div>
     </main>
   );

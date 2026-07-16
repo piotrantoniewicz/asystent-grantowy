@@ -14,7 +14,7 @@ export default async function Home() {
   });
 
   return (
-    <div className="flex h-screen flex-col bg-background">
+    <div className="flex h-full flex-col bg-background">
       <header className="flex items-center justify-between gap-3 border-b border-border bg-surface px-4 py-2.5">
         <h1 className="flex min-w-0 items-center gap-2 text-sm font-semibold text-foreground">
           <span aria-hidden>🌱</span>

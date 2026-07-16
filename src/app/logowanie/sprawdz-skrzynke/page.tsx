@@ -1,6 +1,6 @@
 export default function SprawdzSkrzynkePage() {
   return (
-    <main className="flex min-h-screen items-center justify-center bg-background px-4">
+    <main className="flex min-h-full items-center justify-center bg-background px-4">
       <div className="max-w-sm space-y-3 rounded-2xl border border-border bg-surface p-8 text-center shadow-sm">
         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary-soft text-xl">
           ✉️

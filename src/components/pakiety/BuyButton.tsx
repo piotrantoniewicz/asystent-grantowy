@@ -2,11 +2,21 @@
 
 import { useState } from "react";
 
-export default function BuyButton({ packageId }: { packageId: string }) {
+export default function BuyButton({
+  packageId,
+  consentChecked,
+}: {
+  packageId: string;
+  consentChecked: boolean;
+}) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function handleClick() {
+    if (!consentChecked) {
+      setError("Zaznacz zgodę powyżej, aby przejść do płatności.");
+      return;
+    }
     setError(null);
     setIsLoading(true);
     try {
@@ -32,7 +42,7 @@ export default function BuyButton({ packageId }: { packageId: string }) {
     <div className="flex w-full flex-col items-stretch gap-1">
       <button
         onClick={handleClick}
-        disabled={isLoading}
+        disabled={isLoading || !consentChecked}
         className="w-full rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-hover disabled:opacity-50"
       >
         {isLoading ? "Przekierowuję…" : "Kup"}

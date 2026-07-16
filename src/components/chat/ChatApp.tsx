@@ -512,6 +512,10 @@ export default function ChatApp({
             Wyślij
           </button>
         </form>
+        <p className="mx-auto mb-3 max-w-2xl px-4 text-center text-xs text-muted">
+          Nie wpisuj danych osobowych osób trzecich. Odpowiedzi generuje AI —
+          zweryfikuj treść przed złożeniem wniosku.
+        </p>
       </div>
     </div>
   );

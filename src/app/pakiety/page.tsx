@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getFreeQuestionsLimit } from "@/lib/settings";
 import { PACKAGES } from "@/lib/stripe/packages";
-import BuyButton from "@/components/pakiety/BuyButton";
+import PackagesGrid from "@/components/pakiety/PackagesGrid";
 
 export default async function PakietyPage({
   searchParams,
@@ -28,7 +28,7 @@ export default async function PakietyPage({
   );
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-full bg-background">
       <div className="mx-auto flex max-w-2xl flex-col gap-6 p-6">
         <div className="flex items-center justify-between">
           <h1 className="text-lg font-semibold text-foreground">
@@ -60,23 +60,7 @@ export default async function PakietyPage({
           kupionych pytań. Pakiety sumują się i nie wygasają.
         </p>
 
-        <div className="grid gap-4 sm:grid-cols-3">
-          {PACKAGES.map((pkg) => (
-            <div
-              key={pkg.id}
-              className="flex flex-col items-center gap-3 rounded-2xl border border-border bg-surface p-5 text-center shadow-sm"
-            >
-              <p className="text-sm font-semibold text-foreground">
-                {pkg.name}
-              </p>
-              <p className="text-3xl font-bold text-primary">
-                {pkg.amountPln} zł
-              </p>
-              <p className="text-xs text-muted">{pkg.questions} pytań</p>
-              <BuyButton packageId={pkg.id} />
-            </div>
-          ))}
-        </div>
+        <PackagesGrid packages={PACKAGES} />
       </div>
     </div>
   );
