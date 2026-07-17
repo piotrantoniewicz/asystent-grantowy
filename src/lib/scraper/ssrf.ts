@@ -58,6 +58,19 @@ export function isBlockedIp(ip: string): boolean {
 export class UnsafeUrlError extends Error {}
 
 /**
+ * Uzupełnia brakujący protokół w adresie wpisanym przez użytkownika
+ * ("fundacja.pl" → "https://fundacja.pl"). Adresy, które już mają protokół,
+ * zostawia bez zmian — także niedozwolone (np. "javascript:"), żeby odrzucił
+ * je assertSafeUrl, a nie ta funkcja.
+ */
+export function normalizeUrlInput(raw: string): string {
+  const trimmed = raw.trim();
+  if (/^[a-z][a-z0-9+.-]*:/i.test(trimmed)) return trimmed; // ma już protokół
+  if (trimmed.startsWith("//")) return `https:${trimmed}`;
+  return `https://${trimmed}`;
+}
+
+/**
  * Sprawdza, że URL jest http(s) i nie rozwiązuje się do adresu prywatnego/lokalnego.
  * Wywoływać przed KAŻDYM pobraniem, także po przekierowaniach (patrz 06-scraping.md).
  *

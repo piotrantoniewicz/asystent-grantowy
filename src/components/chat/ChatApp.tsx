@@ -56,9 +56,88 @@ function buildTimeline(messages: Message[], sources: ScrapedSource[]): TimelineI
   return items.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 }
 
+// Rozpoznaje wiadomość będącą wyłącznie adresem strony.
+// Celowo wąskie: "czy pasujemy? https://..." ma trafić do czatu jak dotąd.
+function looksLikeBareUrl(text: string): boolean {
+  if (/\s/.test(text)) return false;
+  return /^(https?:\/\/)?[a-z0-9-]+(\.[a-z0-9-]+)+(\/\S*)?$/i.test(text);
+}
+
+function SourceForms({
+  orgUrlInput,
+  setOrgUrlInput,
+  grantUrlInput,
+  setGrantUrlInput,
+  isScraping,
+  handleScrape,
+}: {
+  orgUrlInput: string;
+  setOrgUrlInput: (value: string) => void;
+  grantUrlInput: string;
+  setGrantUrlInput: (value: string) => void;
+  isScraping: boolean;
+  handleScrape: (url: string, kind: "organization" | "grant") => void;
+}) {
+  return (
+    <>
+      <div className="space-y-1">
+        <label className="text-xs font-medium text-muted">Strona organizacji</label>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleScrape(orgUrlInput, "organization");
+          }}
+          className="flex gap-1"
+        >
+          <input
+            value={orgUrlInput}
+            onChange={(e) => setOrgUrlInput(e.target.value)}
+            placeholder="https://…"
+            disabled={isScraping}
+            className="w-full min-w-0 flex-1 rounded border border-border bg-background px-2 py-1.5 text-xs text-foreground placeholder:text-muted focus:border-primary focus:outline-none"
+          />
+          <button
+            type="submit"
+            disabled={isScraping || !orgUrlInput.trim()}
+            className="flex-shrink-0 rounded bg-accent-soft px-2 py-1.5 text-xs font-medium text-foreground transition-colors hover:brightness-95 disabled:opacity-50"
+          >
+            Analizuj
+          </button>
+        </form>
+      </div>
+
+      <div className="space-y-1">
+        <label className="text-xs font-medium text-muted">Strona konkursu</label>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleScrape(grantUrlInput, "grant");
+          }}
+          className="flex gap-1"
+        >
+          <input
+            value={grantUrlInput}
+            onChange={(e) => setGrantUrlInput(e.target.value)}
+            placeholder="https://…"
+            disabled={isScraping}
+            className="w-full min-w-0 flex-1 rounded border border-border bg-background px-2 py-1.5 text-xs text-foreground placeholder:text-muted focus:border-primary focus:outline-none"
+          />
+          <button
+            type="submit"
+            disabled={isScraping || !grantUrlInput.trim()}
+            className="flex-shrink-0 rounded bg-accent-soft px-2 py-1.5 text-xs font-medium text-foreground transition-colors hover:brightness-95 disabled:opacity-50"
+          >
+            Analizuj
+          </button>
+        </form>
+      </div>
+    </>
+  );
+}
+
 function ThinkingDots() {
   return (
-    <div className="mr-auto flex max-w-[80%] items-center gap-1 rounded-2xl bg-primary-soft px-4 py-3">
+    <div className="mr-auto flex max-w-[80%] items-center gap-1 rounded bg-primary-soft px-4 py-3">
       <span className="h-2 w-2 animate-bounce rounded-full bg-primary [animation-delay:-0.3s]" />
       <span className="h-2 w-2 animate-bounce rounded-full bg-primary [animation-delay:-0.15s]" />
       <span className="h-2 w-2 animate-bounce rounded-full bg-primary" />
@@ -93,6 +172,7 @@ export default function ChatApp({
   const [grantUrlInput, setGrantUrlInput] = useState("");
   const [isScraping, setIsScraping] = useState(false);
   const [scrapeProgress, setScrapeProgress] = useState<ScrapeProgress | null>(null);
+  const [pendingUrl, setPendingUrl] = useState<string | null>(null);
 
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -241,6 +321,17 @@ export default function ChatApp({
     const text = input.trim();
     if (!text || isSending) return;
 
+    if (looksLikeBareUrl(text)) {
+      const hasOrganization = sources.some((s) => s.kind === "organization");
+      setInput("");
+      if (hasOrganization) {
+        handleScrape(text, "grant");
+      } else {
+        setPendingUrl(text);
+      }
+      return;
+    }
+
     setLimitError(null);
     setLimitErrorBuyUrl(null);
     const conversationId = await ensureConversationId(
@@ -333,68 +424,16 @@ export default function ChatApp({
       >
         <button
           onClick={handleNewConversation}
-          className="rounded-lg bg-primary px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-hover"
+          className="rounded-full bg-primary px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary-hover"
         >
           + Nowa rozmowa
         </button>
-
-        <div className="space-y-1">
-          <label className="text-xs font-medium text-muted">Strona organizacji</label>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              handleScrape(orgUrlInput, "organization");
-            }}
-            className="flex gap-1"
-          >
-            <input
-              value={orgUrlInput}
-              onChange={(e) => setOrgUrlInput(e.target.value)}
-              placeholder="https://…"
-              disabled={isScraping}
-              className="w-full min-w-0 flex-1 rounded-lg border border-border bg-background px-2 py-1.5 text-xs text-foreground placeholder:text-muted focus:border-primary focus:outline-none"
-            />
-            <button
-              type="submit"
-              disabled={isScraping || !orgUrlInput.trim()}
-              className="flex-shrink-0 rounded-lg bg-accent-soft px-2 py-1.5 text-xs font-medium text-foreground transition-colors hover:brightness-95 disabled:opacity-50"
-            >
-              Analizuj
-            </button>
-          </form>
-        </div>
-
-        <div className="space-y-1">
-          <label className="text-xs font-medium text-muted">Strona konkursu</label>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              handleScrape(grantUrlInput, "grant");
-            }}
-            className="flex gap-1"
-          >
-            <input
-              value={grantUrlInput}
-              onChange={(e) => setGrantUrlInput(e.target.value)}
-              placeholder="https://…"
-              disabled={isScraping}
-              className="w-full min-w-0 flex-1 rounded-lg border border-border bg-background px-2 py-1.5 text-xs text-foreground placeholder:text-muted focus:border-primary focus:outline-none"
-            />
-            <button
-              type="submit"
-              disabled={isScraping || !grantUrlInput.trim()}
-              className="flex-shrink-0 rounded-lg bg-accent-soft px-2 py-1.5 text-xs font-medium text-foreground transition-colors hover:brightness-95 disabled:opacity-50"
-            >
-              Analizuj
-            </button>
-          </form>
-        </div>
 
         <div className="flex-1 space-y-1 overflow-y-auto border-t border-border pt-2">
           {conversations.map((c) => (
             <div
               key={c.id}
-              className={`group flex items-center rounded-lg hover:bg-primary-soft ${
+              className={`group flex items-center rounded hover:bg-primary-soft ${
                 c.id === activeId ? "bg-primary-soft" : ""
               }`}
             >
@@ -423,7 +462,7 @@ export default function ChatApp({
           <p className="border-t border-border pt-2 text-xs text-muted">
             Pytania: {remaining.freeQuestionsRemaining} darmowych +{" "}
             {remaining.paidQuestionsRemaining} kupionych ·{" "}
-            <Link href="/pakiety" className="text-primary underline hover:no-underline">
+            <Link href="/pakiety" className="text-primary-hover underline hover:no-underline">
               Kup pakiet
             </Link>
           </p>
@@ -434,17 +473,27 @@ export default function ChatApp({
         <button
           onClick={() => setSidebarOpen(true)}
           aria-label="Otwórz menu"
-          className="m-3 self-start rounded-lg border border-border bg-surface px-3 py-1.5 text-sm font-medium text-foreground sm:hidden"
+          className="m-3 self-start rounded border border-border bg-surface px-3 py-1.5 text-sm font-medium text-foreground sm:hidden"
         >
           ☰ Menu
         </button>
 
         <div className="flex-1 overflow-y-auto p-4">
-          {timeline.length === 0 && !isScraping && (
-            <p className="mt-10 text-center text-sm text-muted">
-              W panelu po lewej wklej link do strony twojej organizacji oraz
-              konkursu, który ciebie interesuje. Później możesz zacząć rozmowę.
-            </p>
+          {sources.length === 0 && (
+            <div className="mx-auto mb-6 max-w-sm space-y-4">
+              <p className="text-center text-sm text-muted">
+                Zacznij od wklejenia adresu strony swojej organizacji i strony
+                konkursu. Przeanalizuję je, zanim zaczniemy rozmowę.
+              </p>
+              <SourceForms
+                orgUrlInput={orgUrlInput}
+                setOrgUrlInput={setOrgUrlInput}
+                grantUrlInput={grantUrlInput}
+                setGrantUrlInput={setGrantUrlInput}
+                isScraping={isScraping}
+                handleScrape={handleScrape}
+              />
+            </div>
           )}
           <div className="mx-auto flex max-w-2xl flex-col gap-3">
             {timeline.map((item) =>
@@ -452,14 +501,14 @@ export default function ChatApp({
                 item.message.role === "user" ? (
                   <div
                     key={item.message.id}
-                    className="ml-auto max-w-[80%] whitespace-pre-wrap rounded-2xl bg-primary px-4 py-2 text-sm text-white"
+                    className="ml-auto max-w-[80%] whitespace-pre-wrap rounded bg-primary px-4 py-2 text-sm text-white"
                   >
                     {item.message.content}
                   </div>
                 ) : (
                   <div
                     key={item.message.id}
-                    className="mr-auto max-w-[80%] rounded-2xl bg-primary-soft px-4 py-2 text-sm text-foreground [&_a]:underline [&_li]:ml-4 [&_ol]:list-decimal [&_p]:mb-2 [&_p:last-child]:mb-0 [&_ul]:list-disc"
+                    className="mr-auto max-w-[80%] rounded bg-primary-soft px-4 py-2 text-sm text-foreground [&_a]:underline [&_li]:ml-4 [&_ol]:list-decimal [&_p]:mb-2 [&_p:last-child]:mb-0 [&_ul]:list-disc"
                   >
                     <ReactMarkdown remarkPlugins={[remarkGfm]}>
                       {item.message.content}
@@ -469,7 +518,7 @@ export default function ChatApp({
               ) : (
                 <div
                   key={item.source.id}
-                  className="mr-auto max-w-[80%] rounded-2xl border border-border bg-surface px-4 py-2 text-sm shadow-sm"
+                  className="mr-auto max-w-[80%] rounded border border-border bg-surface px-4 py-2 text-sm shadow-sm"
                 >
                   <p className="mb-1 text-xs font-medium text-muted">
                     {item.source.kind === "organization"
@@ -483,15 +532,14 @@ export default function ChatApp({
                         {item.source.summary}
                       </p>
                       <p className="mt-2 text-xs text-muted">
-                        Pobrano {item.source.pages.length} dokumentów. Czy czegoś
-                        brakuje? Jeśli tak, wklej link do brakującego dokumentu.
+                        Pobrano {item.source.pages.length} dokumentów.
                       </p>
                     </>
                   )}
                   {item.source.status === "error" && (
                     <p className="text-danger">
-                      Nie udało się pobrać treści tej strony. Możesz wkleić treść
-                      regulaminu bezpośrednio do czatu.
+                      Nie udało się pobrać treści z tej strony. Spróbuj wkleić link
+                      bezpośrednio do dokumentu z regulaminem (najczęściej plik PDF).
                     </p>
                   )}
                 </div>
@@ -499,7 +547,7 @@ export default function ChatApp({
             )}
 
             {isScraping && scrapeProgress && (
-              <div className="mr-auto max-w-[80%] rounded-2xl border border-border bg-surface px-4 py-2 text-sm text-muted shadow-sm">
+              <div className="mr-auto max-w-[80%] rounded border border-border bg-surface px-4 py-2 text-sm text-muted shadow-sm">
                 {scrapeProgress.errorMessage ? (
                   <p className="text-danger">{scrapeProgress.errorMessage}</p>
                 ) : (
@@ -519,7 +567,7 @@ export default function ChatApp({
         </div>
 
         {limitError && (
-          <p className="mx-auto mb-2 max-w-2xl rounded-lg bg-danger-soft px-3 py-2 text-center text-sm text-danger">
+          <p className="mx-auto mb-2 max-w-2xl rounded bg-danger-soft px-3 py-2 text-center text-sm text-danger">
             {limitError}
             {limitErrorBuyUrl && (
               <>
@@ -544,16 +592,43 @@ export default function ChatApp({
             onChange={(e) => setInput(e.target.value)}
             placeholder="Napisz wiadomość…"
             disabled={isSending}
-            className="flex-1 rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground placeholder:text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            className="flex-1 rounded border border-border bg-surface px-3 py-2 text-sm text-foreground placeholder:text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
           />
           <button
             type="submit"
             disabled={isSending || !input.trim()}
-            className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-hover disabled:opacity-50"
+            className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary-hover disabled:opacity-50"
           >
             Wyślij
           </button>
         </form>
+        {pendingUrl && (
+          <div className="mx-auto mb-3 flex max-w-2xl flex-wrap gap-2 px-4 text-sm">
+            <span className="w-full text-xs text-muted">
+              Co to za strona?
+            </span>
+            <button
+              onClick={() => {
+                const url = pendingUrl;
+                setPendingUrl(null);
+                handleScrape(url, "organization");
+              }}
+              className="rounded-full bg-accent-soft px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:brightness-95"
+            >
+              To strona mojej organizacji
+            </button>
+            <button
+              onClick={() => {
+                const url = pendingUrl;
+                setPendingUrl(null);
+                handleScrape(url, "grant");
+              }}
+              className="rounded-full bg-accent-soft px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:brightness-95"
+            >
+              To strona konkursu
+            </button>
+          </div>
+        )}
         <p className="mx-auto mb-3 max-w-2xl px-4 text-center text-xs text-muted">
           Nie wpisuj danych osobowych osób trzecich. Odpowiedzi generuje AI —
           zweryfikuj treść przed złożeniem wniosku.

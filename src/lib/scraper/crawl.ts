@@ -91,7 +91,8 @@ export async function crawlSite(
 
   const visited = new Set<string>();
   const seenHashes = new Set<string>();
-  const pdfUrlsToFetch = new Set<string>();
+  const matchedPdfUrls = new Set<string>();
+  const otherPdfUrls = new Set<string>();
   const pages: CrawledPage[] = [];
 
   const queue: QueueItem[] = [{ url: root.toString(), depth: 0 }];
@@ -142,9 +143,9 @@ export async function crawlSite(
 
     if (kind === "grant") {
       for (const link of extracted.links) {
-        if (isPdfLink(link.url) && pdfUrlsToFetch.size < MAX_PDF_PAGES) {
-          pdfUrlsToFetch.add(link.url);
-        }
+        if (!isPdfLink(link.url)) continue;
+        if (matchesKeywords(link, keywords)) matchedPdfUrls.add(link.url);
+        else otherPdfUrls.add(link.url);
       }
     }
 
@@ -168,7 +169,7 @@ export async function crawlSite(
   }
 
   if (kind === "grant") {
-    for (const pdfUrl of pdfUrlsToFetch) {
+    for (const pdfUrl of [...matchedPdfUrls, ...otherPdfUrls.values()]) {
       if (pages.filter((p) => p.contentType === "pdf").length >= MAX_PDF_PAGES) break;
 
       const fetched = await safeFetch(pdfUrl, MAX_FILE_BYTES);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { assertSafeUrl, isBlockedIp, UnsafeUrlError } from "./ssrf";
+import { assertSafeUrl, isBlockedIp, normalizeUrlInput, UnsafeUrlError } from "./ssrf";
 
 describe("isBlockedIp", () => {
   it("blocks private and loopback IPv4 ranges", () => {
@@ -38,5 +38,27 @@ describe("assertSafeUrl", () => {
 
   it("rejects invalid URLs", async () => {
     await expect(assertSafeUrl("not a url")).rejects.toThrow(UnsafeUrlError);
+  });
+});
+
+describe("normalizeUrlInput", () => {
+  it("adds https:// when protocol is missing", () => {
+    expect(normalizeUrlInput("fundacja.pl")).toBe("https://fundacja.pl");
+  });
+
+  it("leaves http:// URLs unchanged", () => {
+    expect(normalizeUrlInput("http://fundacja.pl")).toBe("http://fundacja.pl");
+  });
+
+  it("leaves https:// URLs unchanged", () => {
+    expect(normalizeUrlInput("https://fundacja.pl")).toBe("https://fundacja.pl");
+  });
+
+  it("trims whitespace before adding the protocol", () => {
+    expect(normalizeUrlInput("  fundacja.pl  ")).toBe("https://fundacja.pl");
+  });
+
+  it("leaves disallowed protocols unchanged so assertSafeUrl rejects them", () => {
+    expect(normalizeUrlInput("javascript:alert(1)")).toBe("javascript:alert(1)");
   });
 });

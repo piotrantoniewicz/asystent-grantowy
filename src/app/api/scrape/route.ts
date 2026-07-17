@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { assertSafeUrl } from "@/lib/scraper/ssrf";
+import { assertSafeUrl, normalizeUrlInput } from "@/lib/scraper/ssrf";
 import { crawlSite, type ScrapeKind } from "@/lib/scraper/crawl";
 import { summarizeScrape } from "@/lib/scraper/summarize";
 
@@ -36,7 +36,7 @@ export async function POST(request: Request) {
 
   let safeUrl: URL;
   try {
-    safeUrl = await assertSafeUrl(url);
+    safeUrl = await assertSafeUrl(normalizeUrlInput(url));
   } catch (error) {
     return NextResponse.json({ error: (error as Error).message }, { status: 400 });
   }
@@ -94,7 +94,7 @@ export async function POST(request: Request) {
           send({
             event: "error",
             error:
-              "Nie udało się pobrać żadnej treści z tej strony. Możesz wkleić treść regulaminu bezpośrednio do czatu.",
+              "Nie udało się pobrać treści z tej strony. Spróbuj wkleić link bezpośrednio do dokumentu z regulaminem (najczęściej plik PDF).",
           });
           return;
         }

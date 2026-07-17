@@ -36,4 +36,32 @@ describe("extractHtml", () => {
       { url: "https://example.com/regulamin.pdf", anchorText: "Regulamin" },
     ]);
   });
+
+  it("reads content only from <main> when it has enough text, ignoring sidebar junk", () => {
+    const html = `
+      <html><head><title>Strona testowa</title></head>
+      <body>
+        <aside><p>Losowy widget z paska bocznego.</p></aside>
+        <main>
+          <h1>Nagłówek główny</h1>
+          <p>${"Treść konkursu opisana szeroko i szczegółowo. ".repeat(6)}</p>
+        </main>
+      </body></html>
+    `;
+    const result = extractHtml(html, "https://example.com/");
+    expect(result.text).toContain("Treść konkursu");
+    expect(result.text).not.toContain("Losowy widget");
+  });
+
+  it("falls back to <body> when <main> is empty or missing content", () => {
+    const html = `
+      <html><head><title>Strona testowa</title></head>
+      <body>
+        <main></main>
+        <p>Treść w body, bo main jest puste.</p>
+      </body></html>
+    `;
+    const result = extractHtml(html, "https://example.com/");
+    expect(result.text).toContain("Treść w body, bo main jest puste.");
+  });
 });

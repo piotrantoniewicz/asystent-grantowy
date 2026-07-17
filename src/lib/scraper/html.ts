@@ -21,6 +21,17 @@ const REMOVE_SELECTORS = [
   "[class*=menu]",
 ];
 
+// Wybierz kontener treści głównej; jeśli go nie ma albo jest pusty, użyj body.
+function pickContentRoot($: cheerio.CheerioAPI) {
+  for (const selector of ["main", "[role=main]", "article"]) {
+    const el = $(selector).first();
+    if (el.length && el.text().replace(/\s+/g, " ").trim().length >= 200) {
+      return el;
+    }
+  }
+  return $("body");
+}
+
 /**
  * Zamienia HTML na czysty tekst zachowując nagłówki, listy i tabele
  * (patrz 06-scraping.md). Usuwa nawigację, stopki, skrypty i banery cookies.
@@ -63,7 +74,7 @@ export function extractHtml(html: string, baseUrl: string): ExtractedHtml {
   });
 
   const lines: string[] = [];
-  $("body")
+  pickContentRoot($)
     .find("h1, h2, h3, h4, h5, h6, p, li")
     .each((_, el) => {
       // Pomiń kontenery zawierające inne wybrane elementy (unikamy duplikacji

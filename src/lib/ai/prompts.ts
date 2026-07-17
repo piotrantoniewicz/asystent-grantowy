@@ -64,4 +64,10 @@ podsumowanie po polsku (maks. 8 zdań lub punktów).
 [dla organizacji]: opisz czym jest ta organizacja, co robi, jakie ma doświadczenie.
 [dla konkursu]: wypisz znalezione dokumenty oraz: organizatora, dla kogo jest
 konkurs, kwoty dofinansowania, termin naboru — tylko jeśli są wprost w treści.
+[dla konkursu] na końcu dodaj jedno zdanie o brakach: porównaj znalezione
+dokumenty z typowym kompletem dokumentacji konkursowej (regulamin, wzór
+wniosku, kryteria/karta oceny, harmonogram naboru, załączniki) i wymień
+wyłącznie te pozycje z tej listy, których w treści nie ma. Jeśli komplet
+jest pełny — napisz, że wygląda kompletnie. Nie wymyślaj innych dokumentów
+spoza tej listy i nie zgaduj ich treści.
 Nie dodawaj nic od siebie.`;
