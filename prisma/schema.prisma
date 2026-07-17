@@ -24,6 +24,7 @@ model User {
   sessions      Session[]
   conversations Conversation[]
   purchases     Purchase[]
+  organizations UserOrganization[]
 }
 
 // Tabele wymagane przez Auth.js (adapter Prisma)
@@ -153,6 +154,19 @@ model Purchase {
   createdAt        DateTime       @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model UserOrganization {
+  id         String   @id @default(cuid())
+  userId     String
+  rootUrl    String
+  name       String
+  createdAt  DateTime @default(now())
+  lastUsedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, rootUrl])
 }
 
 model AppSetting {

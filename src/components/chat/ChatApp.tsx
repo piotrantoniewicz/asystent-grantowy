@@ -36,6 +36,8 @@ type ScrapeProgress = {
   errorMessage: string | null;
 };
 
+type ScrapeKind = "organization" | "grant";
+
 type TimelineItem =
   | { type: "message"; createdAt: string; message: Message }
   | { type: "scrape"; createdAt: string; source: ScrapedSource };
@@ -63,47 +65,83 @@ function looksLikeBareUrl(text: string): boolean {
   return /^(https?:\/\/)?[a-z0-9-]+(\.[a-z0-9-]+)+(\/\S*)?$/i.test(text);
 }
 
+type RememberedOrganization = { id: string; rootUrl: string; name: string };
+
 function SourceForms({
   orgUrlInput,
   setOrgUrlInput,
   grantUrlInput,
   setGrantUrlInput,
-  isScraping,
+  isOrgScraping,
+  isGrantScraping,
   handleScrape,
+  organizations,
 }: {
   orgUrlInput: string;
   setOrgUrlInput: (value: string) => void;
   grantUrlInput: string;
   setGrantUrlInput: (value: string) => void;
-  isScraping: boolean;
-  handleScrape: (url: string, kind: "organization" | "grant") => void;
+  isOrgScraping: boolean;
+  isGrantScraping: boolean;
+  handleScrape: (url: string, kind: ScrapeKind, forceRefresh?: boolean) => void;
+  organizations: RememberedOrganization[];
 }) {
+  const [showOtherOrgField, setShowOtherOrgField] = useState(false);
+
   return (
     <>
       <div className="space-y-1">
         <label className="text-xs font-medium text-muted">Strona organizacji</label>
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            handleScrape(orgUrlInput, "organization");
-          }}
-          className="flex gap-1"
-        >
-          <input
-            value={orgUrlInput}
-            onChange={(e) => setOrgUrlInput(e.target.value)}
-            placeholder="https://…"
-            disabled={isScraping}
-            className="w-full min-w-0 flex-1 rounded border border-border bg-background px-2 py-1.5 text-xs text-foreground placeholder:text-muted focus:border-primary focus:outline-none"
-          />
-          <button
-            type="submit"
-            disabled={isScraping || !orgUrlInput.trim()}
-            className="flex-shrink-0 rounded bg-accent-soft px-2 py-1.5 text-xs font-medium text-foreground transition-colors hover:brightness-95 disabled:opacity-50"
+        {organizations.length === 1 ? (
+          <p className="text-xs text-muted">
+            Rozpoznano zapamiętaną organizację „{organizations[0].name}” —
+            analizuję automatycznie…
+          </p>
+        ) : organizations.length >= 2 && !showOtherOrgField ? (
+          <div className="flex flex-wrap gap-1">
+            {organizations.map((org) => (
+              <button
+                key={org.id}
+                type="button"
+                onClick={() => handleScrape(org.rootUrl, "organization")}
+                disabled={isOrgScraping}
+                className="rounded-full bg-accent-soft px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:brightness-95 disabled:opacity-50"
+              >
+                {org.name}
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={() => setShowOtherOrgField(true)}
+              className="rounded-full border border-border px-3 py-1.5 text-xs font-medium text-muted transition-colors hover:text-foreground"
+            >
+              inna organizacja
+            </button>
+          </div>
+        ) : (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleScrape(orgUrlInput, "organization");
+            }}
+            className="flex gap-1"
           >
-            Analizuj
-          </button>
-        </form>
+            <input
+              value={orgUrlInput}
+              onChange={(e) => setOrgUrlInput(e.target.value)}
+              placeholder="https://…"
+              disabled={isOrgScraping}
+              className="w-full min-w-0 flex-1 rounded border border-border bg-background px-2 py-1.5 text-xs text-foreground placeholder:text-muted focus:border-primary focus:outline-none"
+            />
+            <button
+              type="submit"
+              disabled={isOrgScraping || !orgUrlInput.trim()}
+              className="flex-shrink-0 rounded bg-accent-soft px-2 py-1.5 text-xs font-medium text-foreground transition-colors hover:brightness-95 disabled:opacity-50"
+            >
+              Analizuj
+            </button>
+          </form>
+        )}
       </div>
 
       <div className="space-y-1">
@@ -119,12 +157,12 @@ function SourceForms({
             value={grantUrlInput}
             onChange={(e) => setGrantUrlInput(e.target.value)}
             placeholder="https://…"
-            disabled={isScraping}
+            disabled={isGrantScraping}
             className="w-full min-w-0 flex-1 rounded border border-border bg-background px-2 py-1.5 text-xs text-foreground placeholder:text-muted focus:border-primary focus:outline-none"
           />
           <button
             type="submit"
-            disabled={isScraping || !grantUrlInput.trim()}
+            disabled={isGrantScraping || !grantUrlInput.trim()}
             className="flex-shrink-0 rounded bg-accent-soft px-2 py-1.5 text-xs font-medium text-foreground transition-colors hover:brightness-95 disabled:opacity-50"
           >
             Analizuj
@@ -170,11 +208,18 @@ export default function ChatApp({
 
   const [orgUrlInput, setOrgUrlInput] = useState("");
   const [grantUrlInput, setGrantUrlInput] = useState("");
-  const [isScraping, setIsScraping] = useState(false);
-  const [scrapeProgress, setScrapeProgress] = useState<ScrapeProgress | null>(null);
+  const [scrapingKinds, setScrapingKinds] = useState<Record<ScrapeKind, boolean>>({
+    organization: false,
+    grant: false,
+  });
+  const [scrapeProgress, setScrapeProgress] = useState<
+    Record<ScrapeKind, ScrapeProgress | null>
+  >({ organization: null, grant: null });
   const [pendingUrl, setPendingUrl] = useState<string | null>(null);
+  const [organizations, setOrganizations] = useState<RememberedOrganization[]>([]);
 
   const bottomRef = useRef<HTMLDivElement>(null);
+  const autoScrapedForRef = useRef<string | null>(null);
 
   useEffect(() => {
     fetch("/api/me")
@@ -182,6 +227,22 @@ export default function ChatApp({
       .then(setRemaining)
       .catch(() => {});
   }, [messages.length]);
+
+  useEffect(() => {
+    fetch("/api/organizations")
+      .then((r) => r.json())
+      .then(setOrganizations)
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (scrapingKinds.organization || sources.length !== 0 || organizations.length !== 1) return;
+    const key = activeId ?? "new";
+    if (autoScrapedForRef.current === key) return;
+    autoScrapedForRef.current = key;
+    handleScrape(organizations[0].rootUrl, "organization");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [organizations, sources, scrapingKinds, activeId]);
 
   useEffect(() => {
     if (!activeId) return;
@@ -235,12 +296,15 @@ export default function ChatApp({
     return conversation.id;
   }
 
-  async function handleScrape(url: string, kind: "organization" | "grant") {
-    if (!url.trim() || isScraping) return;
+  async function handleScrape(url: string, kind: ScrapeKind, forceRefresh = false) {
+    if (!url.trim() || scrapingKinds[kind]) return;
 
     setLimitError(null);
-    setIsScraping(true);
-    setScrapeProgress({ htmlCount: 0, pdfCount: 0, lastUrl: null, errorMessage: null });
+    setScrapingKinds((prev) => ({ ...prev, [kind]: true }));
+    setScrapeProgress((prev) => ({
+      ...prev,
+      [kind]: { htmlCount: 0, pdfCount: 0, lastUrl: null, errorMessage: null },
+    }));
 
     try {
       const conversationId = await ensureConversationId();
@@ -248,16 +312,19 @@ export default function ChatApp({
       const res = await fetch("/api/scrape", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ conversationId, url: url.trim(), kind }),
+        body: JSON.stringify({ conversationId, url: url.trim(), kind, forceRefresh }),
       });
 
       if (!res.ok || !res.body) {
         const data = await res.json().catch(() => null);
         setScrapeProgress((prev) => ({
-          htmlCount: prev?.htmlCount ?? 0,
-          pdfCount: prev?.pdfCount ?? 0,
-          lastUrl: prev?.lastUrl ?? null,
-          errorMessage: data?.error ?? "Nie udało się przeanalizować strony.",
+          ...prev,
+          [kind]: {
+            htmlCount: prev[kind]?.htmlCount ?? 0,
+            pdfCount: prev[kind]?.pdfCount ?? 0,
+            lastUrl: prev[kind]?.lastUrl ?? null,
+            errorMessage: data?.error ?? "Nie udało się przeanalizować strony.",
+          },
         }));
         return;
       }
@@ -292,10 +359,14 @@ export default function ChatApp({
 
           if (event.event === "page") {
             setScrapeProgress((prev) => ({
-              htmlCount: (prev?.htmlCount ?? 0) + (event.contentType === "html" ? 1 : 0),
-              pdfCount: (prev?.pdfCount ?? 0) + (event.contentType === "pdf" ? 1 : 0),
-              lastUrl: event.url,
-              errorMessage: null,
+              ...prev,
+              [kind]: {
+                htmlCount:
+                  (prev[kind]?.htmlCount ?? 0) + (event.contentType === "html" ? 1 : 0),
+                pdfCount: (prev[kind]?.pdfCount ?? 0) + (event.contentType === "pdf" ? 1 : 0),
+                lastUrl: event.url,
+                errorMessage: null,
+              },
             }));
           } else if (event.event === "done") {
             const conversationRes = await fetch(`/api/conversations/${conversationId}`);
@@ -304,16 +375,19 @@ export default function ChatApp({
             setSources(conversationData.scrapedSources ?? []);
           } else if (event.event === "error") {
             setScrapeProgress((prev) => ({
-              htmlCount: prev?.htmlCount ?? 0,
-              pdfCount: prev?.pdfCount ?? 0,
-              lastUrl: prev?.lastUrl ?? null,
-              errorMessage: event.error,
+              ...prev,
+              [kind]: {
+                htmlCount: prev[kind]?.htmlCount ?? 0,
+                pdfCount: prev[kind]?.pdfCount ?? 0,
+                lastUrl: prev[kind]?.lastUrl ?? null,
+                errorMessage: event.error,
+              },
             }));
           }
         }
       }
     } finally {
-      setIsScraping(false);
+      setScrapingKinds((prev) => ({ ...prev, [kind]: false }));
     }
   }
 
@@ -490,8 +564,10 @@ export default function ChatApp({
                 setOrgUrlInput={setOrgUrlInput}
                 grantUrlInput={grantUrlInput}
                 setGrantUrlInput={setGrantUrlInput}
-                isScraping={isScraping}
+                isOrgScraping={scrapingKinds.organization}
+                isGrantScraping={scrapingKinds.grant}
                 handleScrape={handleScrape}
+                organizations={organizations}
               />
             </div>
           )}
@@ -525,6 +601,18 @@ export default function ChatApp({
                       ? "Strona organizacji"
                       : "Strona konkursu"}{" "}
                     — {item.source.rootUrl}
+                    {item.source.kind === "organization" &&
+                      item.source.status === "done" && (
+                        <button
+                          onClick={() =>
+                            handleScrape(item.source.rootUrl, "organization", true)
+                          }
+                          disabled={scrapingKinds.organization}
+                          className="ml-2 text-muted underline hover:text-foreground disabled:opacity-50"
+                        >
+                          odśwież
+                        </button>
+                      )}
                   </p>
                   {item.source.status === "done" && (
                     <>
@@ -546,19 +634,26 @@ export default function ChatApp({
               ),
             )}
 
-            {isScraping && scrapeProgress && (
-              <div className="mr-auto max-w-[80%] rounded border border-border bg-surface px-4 py-2 text-sm text-muted shadow-sm">
-                {scrapeProgress.errorMessage ? (
-                  <p className="text-danger">{scrapeProgress.errorMessage}</p>
-                ) : (
-                  <p>
-                    Przeglądam stronę… znaleziono {scrapeProgress.htmlCount} podstron,{" "}
-                    {scrapeProgress.pdfCount} dokumentów PDF
-                    {scrapeProgress.lastUrl ? ` (${scrapeProgress.lastUrl})` : ""}
-                  </p>
-                )}
-              </div>
-            )}
+            {(["organization", "grant"] as const).map((kind) => {
+              const progress = scrapeProgress[kind];
+              if (!scrapingKinds[kind] || !progress) return null;
+              return (
+                <div
+                  key={kind}
+                  className="mr-auto max-w-[80%] rounded border border-border bg-surface px-4 py-2 text-sm text-muted shadow-sm"
+                >
+                  {progress.errorMessage ? (
+                    <p className="text-danger">{progress.errorMessage}</p>
+                  ) : (
+                    <p>
+                      Przeglądam stronę {kind === "organization" ? "organizacji" : "konkursu"}…
+                      znaleziono {progress.htmlCount} podstron, {progress.pdfCount} dokumentów PDF
+                      {progress.lastUrl ? ` (${progress.lastUrl})` : ""}
+                    </p>
+                  )}
+                </div>
+              );
+            })}
 
             {isThinking && <ThinkingDots />}
 

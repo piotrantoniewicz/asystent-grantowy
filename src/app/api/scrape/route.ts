@@ -15,9 +15,9 @@ export async function POST(request: Request) {
   const userId = session.user.id;
 
   const body = (await request.json().catch(() => null)) as
-    | { conversationId?: string; url?: string; kind?: ScrapeKind }
+    | { conversationId?: string; url?: string; kind?: ScrapeKind; forceRefresh?: boolean }
     | null;
-  const { conversationId, url, kind } = body ?? {};
+  const { conversationId, url, kind, forceRefresh } = body ?? {};
 
   if (!conversationId || !url || (kind !== "organization" && kind !== "grant")) {
     return NextResponse.json(
@@ -84,6 +84,51 @@ export async function POST(request: Request) {
       };
 
       try {
+        // U10: dla organizacji kopiuj ostatnie udane pobranie tego samego adresu
+        // zamiast crawlować ponownie — strona konkursu zawsze musi być świeża.
+        const reusableSource =
+          kind === "organization" && !forceRefresh
+            ? await prisma.scrapedSource.findFirst({
+                where: {
+                  kind: "organization",
+                  rootUrl: safeUrl.toString(),
+                  status: "done",
+                  conversation: { userId },
+                },
+                orderBy: { createdAt: "desc" },
+                include: { pages: true },
+              })
+            : null;
+
+        if (reusableSource) {
+          await prisma.scrapedPage.createMany({
+            data: reusableSource.pages.map((p) => ({
+              sourceId: source.id,
+              url: p.url,
+              contentType: p.contentType,
+              title: p.title,
+              textContent: p.textContent,
+            })),
+          });
+          await prisma.scrapedSource.update({
+            where: { id: source.id },
+            data: { status: "done", summary: reusableSource.summary },
+          });
+          await prisma.userOrganization
+            .update({
+              where: { userId_rootUrl: { userId, rootUrl: safeUrl.toString() } },
+              data: { rootUrl: safeUrl.toString() },
+            })
+            .catch(() => {});
+          send({
+            event: "done",
+            sourceId: source.id,
+            summary: reusableSource.summary ?? "",
+            trimmed: false,
+          });
+          return;
+        }
+
         const result = await crawlSite(safeUrl.toString(), kind, (event) => send(event));
 
         if (result.pages.length === 0) {
@@ -115,6 +160,16 @@ export async function POST(request: Request) {
           where: { id: source.id },
           data: { status: "done", summary },
         });
+
+        if (kind === "organization") {
+          const rootTitle = result.pages[0]?.title?.trim();
+          const name = (rootTitle || safeUrl.hostname).slice(0, 60);
+          await prisma.userOrganization.upsert({
+            where: { userId_rootUrl: { userId, rootUrl: safeUrl.toString() } },
+            create: { userId, rootUrl: safeUrl.toString(), name },
+            update: { name },
+          });
+        }
 
         if (kind === "grant") {
           const current = await prisma.conversation.findUnique({
