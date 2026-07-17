@@ -617,9 +617,11 @@ export default function ChatApp({
                   </p>
                   {item.source.status === "done" && (
                     <>
-                      <p className="whitespace-pre-wrap text-foreground">
-                        {item.source.summary}
-                      </p>
+                      <div className="text-foreground [&_a]:underline [&_li]:ml-4 [&_ol]:list-decimal [&_p]:mb-2 [&_p:last-child]:mb-0 [&_ul]:list-disc">
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                          {item.source.summary ?? ""}
+                        </ReactMarkdown>
+                      </div>
                       <p className="mt-2 text-xs text-muted">
                         Pobrano {item.source.pages.length} dokumentów.
                       </p>

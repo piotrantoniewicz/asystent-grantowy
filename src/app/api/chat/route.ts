@@ -157,7 +157,22 @@ export async function POST(request: Request) {
 
     let scrapedBudget = MAX_SCRAPED_CONTEXT_CHARS;
     const scrapedParts: string[] = [];
-    for (const source of conversation.scrapedSources) {
+    // Organizacja idzie przed konkursem, żeby przy wyczerpaniu budżetu to strona
+    // konkursu (zwykle obszerniejsza) była ucinana jako pierwsza.
+    const orderedSources = [...conversation.scrapedSources].sort((a, b) =>
+      a.kind === b.kind ? 0 : a.kind === "organization" ? -1 : 1,
+    );
+    for (const source of orderedSources) {
+      if (scrapedBudget <= 0) break;
+      const label =
+        source.kind === "organization"
+          ? "STRONA ORGANIZACJI (podmiot, który ubiega się o grant)"
+          : "STRONA KONKURSU (grant, o który organizacja się ubiega)";
+      const heading =
+        `## ${label}\n` +
+        (source.summary ? `Notatka (podsumowanie): ${source.summary}\n` : "");
+      scrapedParts.push(heading);
+      scrapedBudget -= heading.length;
       for (const page of source.pages) {
         if (scrapedBudget <= 0) break;
         const part = `### ${page.title} (${page.url})\n${page.textContent}`;
