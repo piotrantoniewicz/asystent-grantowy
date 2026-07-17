@@ -43,7 +43,7 @@ export default function BuyButton({
       <button
         onClick={handleClick}
         disabled={isLoading || !consentChecked}
-        className="w-full rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-hover disabled:opacity-50"
+        className="w-full rounded-full bg-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary-hover disabled:opacity-50"
       >
         {isLoading ? "Przekierowuję…" : "Kup"}
       </button>

@@ -42,17 +42,17 @@ export default async function AdminConversationsPage({
           name="email"
           defaultValue={email}
           placeholder="Filtruj po adresie e-mail…"
-          className="w-full max-w-xs rounded-lg border border-border bg-surface p-2 text-sm text-foreground"
+          className="w-full max-w-xs rounded border border-border bg-surface p-2 text-sm text-foreground"
         />
         <button
           type="submit"
-          className="rounded-lg border border-border px-3 py-2 text-sm text-muted hover:text-foreground"
+          className="rounded border border-border px-3 py-2 text-sm text-muted hover:text-foreground"
         >
           Szukaj
         </button>
       </form>
 
-      <div className="overflow-hidden rounded-2xl border border-border bg-surface shadow-sm">
+      <div className="overflow-hidden rounded border border-border bg-surface shadow-sm">
         <table className="w-full text-left text-sm">
           <thead className="border-b border-border text-xs text-muted">
             <tr>
@@ -100,7 +100,7 @@ export default async function AdminConversationsPage({
             {page > 1 && (
               <Link
                 href={`/admin/rozmowy?page=${page - 1}${email ? `&email=${email}` : ""}`}
-                className="rounded-lg border border-border px-3 py-1.5 hover:text-foreground"
+                className="rounded border border-border px-3 py-1.5 hover:text-foreground"
               >
                 ← Poprzednia
               </Link>
@@ -108,7 +108,7 @@ export default async function AdminConversationsPage({
             {page < totalPages && (
               <Link
                 href={`/admin/rozmowy?page=${page + 1}${email ? `&email=${email}` : ""}`}
-                className="rounded-lg border border-border px-3 py-1.5 hover:text-foreground"
+                className="rounded border border-border px-3 py-1.5 hover:text-foreground"
               >
                 Następna →
               </Link>

@@ -10,7 +10,7 @@ function StatCard({
   sub?: string;
 }) {
   return (
-    <div className="rounded-2xl border border-border bg-surface p-4 shadow-sm">
+    <div className="rounded border border-border bg-surface p-4 shadow-sm">
       <p className="text-xs text-muted">{label}</p>
       <p className="mt-1 text-2xl font-bold text-foreground">{value}</p>
       {sub && <p className="mt-1 text-xs text-muted">{sub}</p>}
@@ -53,7 +53,7 @@ export default async function AdminDashboardPage() {
         />
       </div>
 
-      <div className="rounded-2xl border border-border bg-surface p-4 shadow-sm">
+      <div className="rounded border border-border bg-surface p-4 shadow-sm">
         <p className="mb-3 text-sm font-semibold text-foreground">
           Pytania dziennie — ostatnie 30 dni
         </p>

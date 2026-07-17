@@ -8,16 +8,26 @@ export default function Footer() {
   if (pathname?.startsWith("/admin")) return null;
 
   return (
-    <footer className="flex flex-shrink-0 flex-wrap items-center justify-center gap-x-3 gap-y-1 border-t border-border bg-surface px-4 py-2 text-xs text-muted">
-      <Link href="/regulamin" className="hover:text-foreground">
+    <footer className="flex flex-shrink-0 flex-wrap items-center justify-center gap-x-4 gap-y-1 bg-[#2c1810] px-4 py-2.5 text-xs text-[#c8b8a8]">
+      <span className="font-serif text-[13px] text-white">
+        dobry<span className="text-[#a8c4b4]">ai</span>.pl
+      </span>
+      <span aria-hidden className="opacity-30">
+        ·
+      </span>
+      <Link href="/regulamin" className="hover:text-white">
         Regulamin
       </Link>
-      <span aria-hidden>·</span>
-      <Link href="/polityka-prywatnosci" className="hover:text-foreground">
+      <span aria-hidden className="opacity-30">
+        ·
+      </span>
+      <Link href="/polityka-prywatnosci" className="hover:text-white">
         Polityka prywatności
       </Link>
-      <span aria-hidden>·</span>
-      <Link href="/cookies" className="hover:text-foreground">
+      <span aria-hidden className="opacity-30">
+        ·
+      </span>
+      <Link href="/cookies" className="hover:text-white">
         Cookies
       </Link>
     </footer>

@@ -24,7 +24,7 @@ export default function CookieBanner() {
       <p>
         Używamy wyłącznie plików cookie niezbędnych do działania serwisu —
         logowania i bezpieczeństwa.{" "}
-        <Link href="/cookies" className="text-primary underline hover:no-underline">
+        <Link href="/cookies" className="text-primary-hover underline hover:no-underline">
           Dowiedz się więcej
         </Link>
       </p>
@@ -33,7 +33,7 @@ export default function CookieBanner() {
           localStorage.setItem(STORAGE_KEY, "1");
           setDismissed(true);
         }}
-        className="flex-shrink-0 rounded-lg bg-primary px-3 py-1 font-medium text-white hover:bg-primary-hover"
+        className="flex-shrink-0 rounded-full bg-primary px-4 py-1.5 font-medium text-white transition-colors hover:bg-primary-hover"
       >
         Rozumiem
       </button>

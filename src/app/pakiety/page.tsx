@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { getFreeQuestionsLimit } from "@/lib/settings";
 import { PACKAGES } from "@/lib/stripe/packages";
 import PackagesGrid from "@/components/pakiety/PackagesGrid";
+import Brand from "@/components/layout/Brand";
 
 export default async function PakietyPage({
   searchParams,
@@ -31,9 +32,7 @@ export default async function PakietyPage({
     <div className="min-h-full bg-background">
       <div className="mx-auto flex max-w-2xl flex-col gap-6 p-6">
         <div className="flex items-center justify-between">
-          <h1 className="text-lg font-semibold text-foreground">
-            Pakiety pytań
-          </h1>
+          <Brand />
           <Link
             href="/"
             className="text-sm text-muted hover:text-foreground"
@@ -42,15 +41,19 @@ export default async function PakietyPage({
           </Link>
         </div>
 
+        <h1 className="font-serif text-3xl font-normal text-foreground">
+          Pakiety pytań
+        </h1>
+
         {status === "success" && (
-          <p className="rounded-lg bg-primary-soft px-3 py-2 text-sm text-primary-hover">
+          <p className="rounded bg-primary-soft px-3 py-2 text-sm text-primary-hover">
             Płatność przyjęta. Pytania pojawią się po potwierdzeniu przez Stripe —
             zwykle w kilka sekund. Odśwież stronę czatu, jeśli jeszcze nie widać
             nowego licznika.
           </p>
         )}
         {status === "cancel" && (
-          <p className="rounded-lg bg-accent-soft px-3 py-2 text-sm text-muted">
+          <p className="rounded bg-accent-soft px-3 py-2 text-sm text-muted">
             Płatność anulowana. Możesz spróbować ponownie w dowolnym momencie.
           </p>
         )}

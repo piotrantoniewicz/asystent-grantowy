@@ -1,15 +1,15 @@
 @import "tailwindcss";
 
 :root {
-  --background: #faf7f1;
-  --surface: #ffffff;
-  --foreground: #2b2620;
-  --muted: #7a7266;
-  --border: #e7e0d4;
-  --primary: #0f7a52;
-  --primary-hover: #0b5f40;
-  --primary-soft: #e8f3ec;
-  --accent-soft: #fdf0dd;
+  --background: #fff8f0;
+  --surface: #f5efe7;
+  --foreground: #2c1810;
+  --muted: #7a6452;
+  --border: rgba(44, 24, 16, 0.14);
+  --primary: #2c1810;
+  --primary-hover: #3d6b52;
+  --primary-soft: rgba(61, 107, 82, 0.12);
+  --accent-soft: #edd7c1;
   --danger: #b3432f;
   --danger-soft: #fbeae5;
 }
@@ -26,24 +26,9 @@
   --color-accent-soft: var(--accent-soft);
   --color-danger: var(--danger);
   --color-danger-soft: var(--danger-soft);
-  --font-sans: var(--font-jakarta);
+  --font-sans: var(--font-dm-sans);
+  --font-serif: var(--font-dm-serif);
   --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #1c1a16;
-    --surface: #26231d;
-    --foreground: #f1ece2;
-    --muted: #a89f8f;
-    --border: #3a362c;
-    --primary: #34b382;
-    --primary-hover: #4bc593;
-    --primary-soft: #1f3329;
-    --accent-soft: #332a1c;
-    --danger: #e2846d;
-    --danger-soft: #3a231e;
-  }
 }
 
 body {

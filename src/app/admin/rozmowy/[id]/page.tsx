@@ -38,7 +38,7 @@ export default async function AdminConversationDetailPage({
       </div>
 
       {conversation.scrapedSources.length > 0 && (
-        <div className="rounded-2xl border border-border bg-surface p-4 text-sm shadow-sm">
+        <div className="rounded border border-border bg-surface p-4 text-sm shadow-sm">
           <p className="mb-2 font-semibold text-foreground">
             Zeskrapowane źródła
           </p>
@@ -56,7 +56,7 @@ export default async function AdminConversationDetailPage({
         {conversation.messages.map((m) => (
           <div
             key={m.id}
-            className={`rounded-2xl border border-border p-3 text-sm shadow-sm ${
+            className={`rounded border border-border p-3 text-sm shadow-sm ${
               m.role === "user" ? "bg-surface" : "bg-primary-soft"
             }`}
           >

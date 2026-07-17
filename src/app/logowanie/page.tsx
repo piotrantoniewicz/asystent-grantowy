@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { signIn } from "@/lib/auth";
+import Brand from "@/components/layout/Brand";
 
 export default async function LogowaniePage({
   searchParams,
@@ -10,12 +11,12 @@ export default async function LogowaniePage({
 
   return (
     <main className="flex min-h-full items-center justify-center bg-background px-4">
-      <div className="w-full max-w-sm space-y-6 rounded-2xl border border-border bg-surface p-8 shadow-sm">
-        <div className="space-y-2 text-center">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary-soft text-xl">
-            🌱
-          </div>
-          <h1 className="text-2xl font-semibold text-foreground">Zaloguj się</h1>
+      <div className="w-full max-w-sm space-y-6 rounded border border-border bg-surface p-8 shadow-sm">
+        <div className="space-y-3 text-center">
+          <Brand className="justify-center" />
+          <h1 className="font-serif text-3xl font-normal text-foreground">
+            Zaloguj się
+          </h1>
           <p className="text-sm text-muted">
             Podaj swój adres e-mail. Wyślemy Ci link do zalogowania — bez
             hasła.
@@ -23,7 +24,7 @@ export default async function LogowaniePage({
         </div>
 
         {error && (
-          <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">
+          <p className="rounded bg-danger-soft px-3 py-2 text-sm text-danger">
             Nie udało się wysłać linku logującego. Spróbuj ponownie.
           </p>
         )}
@@ -61,11 +62,11 @@ export default async function LogowaniePage({
             name="email"
             required
             placeholder="twoj@email.pl"
-            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            className="w-full rounded border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
           />
           <button
             type="submit"
-            className="w-full rounded-lg bg-primary px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-hover"
+            className="w-full rounded-full bg-primary px-3 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary-hover"
           >
             Wyślij link logujący
           </button>
@@ -73,13 +74,13 @@ export default async function LogowaniePage({
 
         <p className="text-center text-xs text-muted">
           Logując się akceptujesz{" "}
-          <Link href="/regulamin" className="text-primary underline hover:no-underline">
+          <Link href="/regulamin" className="text-primary-hover underline hover:no-underline">
             Regulamin
           </Link>{" "}
           i{" "}
           <Link
             href="/polityka-prywatnosci"
-            className="text-primary underline hover:no-underline"
+            className="text-primary-hover underline hover:no-underline"
           >
             Politykę prywatności
           </Link>

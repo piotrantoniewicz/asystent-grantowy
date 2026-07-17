@@ -35,7 +35,7 @@ export default async function AdminUsersPage({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="overflow-hidden rounded-2xl border border-border bg-surface shadow-sm">
+      <div className="overflow-hidden rounded border border-border bg-surface shadow-sm">
         <table className="w-full text-left text-sm">
           <thead className="border-b border-border text-xs text-muted">
             <tr>
@@ -88,7 +88,7 @@ export default async function AdminUsersPage({
             {page > 1 && (
               <Link
                 href={`/admin/uzytkownicy?page=${page - 1}`}
-                className="rounded-lg border border-border px-3 py-1.5 hover:text-foreground"
+                className="rounded border border-border px-3 py-1.5 hover:text-foreground"
               >
                 ← Poprzednia
               </Link>
@@ -96,7 +96,7 @@ export default async function AdminUsersPage({
             {page < totalPages && (
               <Link
                 href={`/admin/uzytkownicy?page=${page + 1}`}
-                className="rounded-lg border border-border px-3 py-1.5 hover:text-foreground"
+                className="rounded border border-border px-3 py-1.5 hover:text-foreground"
               >
                 Następna →
               </Link>

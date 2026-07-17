@@ -46,12 +46,12 @@ export default function AddQuestionsForm({ userId }: { userId: string }) {
           value={value}
           onChange={(e) => setValue(e.target.value)}
           placeholder="±pytań"
-          className="w-20 rounded-lg border border-border bg-background p-1.5 text-xs text-foreground"
+          className="w-20 rounded border border-border bg-background p-1.5 text-xs text-foreground"
         />
         <button
           type="submit"
           disabled={isSaving}
-          className="rounded-lg border border-border px-2 py-1.5 text-xs text-muted hover:text-foreground disabled:opacity-50"
+          className="rounded border border-border px-2 py-1.5 text-xs text-muted hover:text-foreground disabled:opacity-50"
         >
           Dodaj
         </button>
