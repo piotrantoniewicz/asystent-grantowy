@@ -166,12 +166,20 @@ export async function POST(request: Request) {
           const name = (rootTitle || safeUrl.hostname).slice(0, 60);
           await prisma.userOrganization.upsert({
             where: { userId_rootUrl: { userId, rootUrl: safeUrl.toString() } },
-            create: { userId, rootUrl: safeUrl.toString(), name },
-            update: { name },
+            create: { userId, rootUrl: safeUrl.toString(), name, summary },
+            update: { name, summary },
           });
         }
 
         if (kind === "grant") {
+          const rootTitle = result.pages[0]?.title?.trim();
+          const name = (rootTitle || safeUrl.hostname).slice(0, 60);
+          await prisma.userGrant.upsert({
+            where: { userId_rootUrl: { userId, rootUrl: safeUrl.toString() } },
+            create: { userId, rootUrl: safeUrl.toString(), name, summary },
+            update: { name, summary },
+          });
+
           const current = await prisma.conversation.findUnique({
             where: { id: conversationId },
             select: { title: true },

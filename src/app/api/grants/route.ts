@@ -8,11 +8,11 @@ export async function GET() {
     return NextResponse.json({ error: "Musisz się zalogować." }, { status: 401 });
   }
 
-  const organizations = await prisma.userOrganization.findMany({
+  const grants = await prisma.userGrant.findMany({
     where: { userId: session.user.id },
     orderBy: { lastUsedAt: "desc" },
     select: { id: true, rootUrl: true, name: true, summary: true },
   });
 
-  return NextResponse.json(organizations);
+  return NextResponse.json(grants);
 }

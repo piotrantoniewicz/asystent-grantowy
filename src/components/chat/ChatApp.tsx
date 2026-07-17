@@ -66,7 +66,123 @@ function looksLikeBareUrl(text: string): boolean {
   return /^(https?:\/\/)?[a-z0-9-]+(\.[a-z0-9-]+)+(\/\S*)?$/i.test(text);
 }
 
-type RememberedOrganization = { id: string; rootUrl: string; name: string };
+type SavedSource = {
+  id: string;
+  rootUrl: string;
+  name: string;
+  summary: string | null;
+};
+
+// Sekcja w menu bocznym: zapisane organizacje albo zapisane konkursy.
+// Każda pozycja jest klikalna (wybiera ją), ma rozwijany opis i „×" do usunięcia,
+// a pod listą jest pole na dodanie nowego linku.
+function SavedSection({
+  title,
+  emptyLabel,
+  items,
+  isScraping,
+  urlInput,
+  setUrlInput,
+  onSelect,
+  onDelete,
+  onAdd,
+}: {
+  title: string;
+  emptyLabel: string;
+  items: SavedSource[];
+  isScraping: boolean;
+  urlInput: string;
+  setUrlInput: (value: string) => void;
+  onSelect: (url: string) => void;
+  onDelete: (id: string) => void;
+  onAdd: () => void;
+}) {
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [showAdd, setShowAdd] = useState(false);
+
+  return (
+    <div className="border-t border-border pt-2">
+      <p className="px-1 pb-1 text-xs font-semibold uppercase tracking-wide text-muted">
+        {title}
+      </p>
+      <div className="space-y-0.5">
+        {items.length === 0 && (
+          <p className="px-1 pb-1 text-xs text-muted">{emptyLabel}</p>
+        )}
+        {items.map((item) => (
+          <div key={item.id} className="rounded hover:bg-primary-soft">
+            <div className="group flex items-center">
+              <button
+                onClick={() => onSelect(item.rootUrl)}
+                disabled={isScraping}
+                title={item.rootUrl}
+                className="min-w-0 flex-1 truncate px-2 py-1.5 text-left text-sm text-foreground disabled:opacity-50"
+              >
+                {item.name}
+              </button>
+              {item.summary && (
+                <button
+                  onClick={() =>
+                    setExpandedId((prev) => (prev === item.id ? null : item.id))
+                  }
+                  aria-label="Pokaż opis"
+                  className="flex-shrink-0 px-1 text-xs text-muted hover:text-foreground"
+                >
+                  {expandedId === item.id ? "▾" : "▸"}
+                </button>
+              )}
+              <button
+                onClick={() => onDelete(item.id)}
+                aria-label="Usuń z zapisanych"
+                className="flex-shrink-0 px-2 text-muted opacity-0 hover:text-danger group-hover:opacity-100"
+              >
+                ×
+              </button>
+            </div>
+            {expandedId === item.id && item.summary && (
+              <div className="max-h-48 overflow-y-auto px-2 pb-2 text-xs text-muted [&_a]:underline [&_li]:ml-4 [&_ol]:list-decimal [&_p]:mb-1 [&_p:last-child]:mb-0 [&_ul]:list-disc">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {item.summary}
+                </ReactMarkdown>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+      {showAdd ? (
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            onAdd();
+          }}
+          className="mt-1 flex gap-1 px-1"
+        >
+          <input
+            value={urlInput}
+            onChange={(e) => setUrlInput(e.target.value)}
+            placeholder="https://…"
+            disabled={isScraping}
+            className="w-full min-w-0 flex-1 rounded border border-border bg-background px-2 py-1 text-xs text-foreground placeholder:text-muted focus:border-primary focus:outline-none"
+          />
+          <button
+            type="submit"
+            disabled={isScraping || !urlInput.trim()}
+            className="flex-shrink-0 rounded bg-accent-soft px-2 py-1 text-xs font-medium text-foreground transition-colors hover:brightness-95 disabled:opacity-50"
+          >
+            Dodaj
+          </button>
+        </form>
+      ) : (
+        <button
+          onClick={() => setShowAdd(true)}
+          className="mt-1 px-2 text-xs font-medium text-primary-hover hover:underline"
+        >
+          + dodaj link
+        </button>
+      )}
+    </div>
+  );
+}
 
 function SourceForms({
   orgUrlInput,
@@ -85,7 +201,7 @@ function SourceForms({
   isOrgScraping: boolean;
   isGrantScraping: boolean;
   handleScrape: (url: string, kind: ScrapeKind, forceRefresh?: boolean) => void;
-  organizations: RememberedOrganization[];
+  organizations: SavedSource[];
 }) {
   const [showOtherOrgField, setShowOtherOrgField] = useState(false);
 
@@ -217,7 +333,8 @@ export default function ChatApp({
     Record<ScrapeKind, ScrapeProgress | null>
   >({ organization: null, grant: null });
   const [pendingUrl, setPendingUrl] = useState<string | null>(null);
-  const [organizations, setOrganizations] = useState<RememberedOrganization[]>([]);
+  const [organizations, setOrganizations] = useState<SavedSource[]>([]);
+  const [grants, setGrants] = useState<SavedSource[]>([]);
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const autoScrapedForRef = useRef<string | null>(null);
@@ -229,11 +346,19 @@ export default function ChatApp({
       .catch(() => {});
   }, [messages.length]);
 
-  useEffect(() => {
+  function refreshSavedSources() {
     fetch("/api/organizations")
       .then((r) => r.json())
       .then(setOrganizations)
       .catch(() => {});
+    fetch("/api/grants")
+      .then((r) => r.json())
+      .then(setGrants)
+      .catch(() => {});
+  }
+
+  useEffect(() => {
+    refreshSavedSources();
   }, []);
 
   useEffect(() => {
@@ -297,7 +422,12 @@ export default function ChatApp({
     return conversation.id;
   }
 
-  async function handleScrape(url: string, kind: ScrapeKind, forceRefresh = false) {
+  async function handleScrape(
+    url: string,
+    kind: ScrapeKind,
+    forceRefresh = false,
+    conversationIdOverride?: string,
+  ) {
     if (!url.trim() || scrapingKinds[kind]) return;
 
     setLimitError(null);
@@ -308,7 +438,7 @@ export default function ChatApp({
     }));
 
     try {
-      const conversationId = await ensureConversationId();
+      const conversationId = conversationIdOverride ?? (await ensureConversationId());
 
       const res = await fetch("/api/scrape", {
         method: "POST",
@@ -374,6 +504,7 @@ export default function ChatApp({
             const conversationData = await conversationRes.json();
             setMessages(conversationData.messages ?? []);
             setSources(conversationData.scrapedSources ?? []);
+            refreshSavedSources();
           } else if (event.event === "error") {
             setScrapeProgress((prev) => ({
               ...prev,
@@ -390,6 +521,37 @@ export default function ChatApp({
     } finally {
       setScrapingKinds((prev) => ({ ...prev, [kind]: false }));
     }
+  }
+
+  // Klik w zapisaną organizację/konkurs w menu: zaczyna świeżą rozmowę
+  // (a jeśli bieżąca jest pusta — używa jej) i analizuje wybrany adres.
+  async function handleSelectSaved(url: string, kind: ScrapeKind) {
+    if (scrapingKinds[kind]) return;
+    const isEmpty = messages.length === 0 && sources.length === 0;
+    let conversationId = activeId;
+    if (!isEmpty || !conversationId) {
+      const res = await fetch("/api/conversations", { method: "POST" });
+      const conversation = await res.json();
+      setConversations((prev) => [conversation, ...prev]);
+      setActiveId(conversation.id);
+      setMessages([]);
+      setSources([]);
+      conversationId = conversation.id;
+    }
+    setSidebarOpen(false);
+    await handleScrape(url, kind, false, conversationId ?? undefined);
+  }
+
+  async function handleDeleteOrganization(id: string) {
+    if (!confirm("Usunąć tę organizację z zapisanych? Rozmowy pozostaną nietknięte.")) return;
+    await fetch(`/api/organizations/${id}`, { method: "DELETE" });
+    setOrganizations((prev) => prev.filter((o) => o.id !== id));
+  }
+
+  async function handleDeleteGrant(id: string) {
+    if (!confirm("Usunąć ten konkurs z zapisanych? Rozmowy pozostaną nietknięte.")) return;
+    await fetch(`/api/grants/${id}`, { method: "DELETE" });
+    setGrants((prev) => prev.filter((g) => g.id !== id));
   }
 
   async function handleSend() {
@@ -504,7 +666,34 @@ export default function ChatApp({
           + Nowa rozmowa
         </button>
 
+        <SavedSection
+          title="Moje organizacje"
+          emptyLabel="Brak zapisanych. Dodaj adres strony swojej organizacji."
+          items={organizations}
+          isScraping={scrapingKinds.organization}
+          urlInput={orgUrlInput}
+          setUrlInput={setOrgUrlInput}
+          onSelect={(url) => handleSelectSaved(url, "organization")}
+          onDelete={handleDeleteOrganization}
+          onAdd={() => handleSelectSaved(orgUrlInput, "organization")}
+        />
+
+        <SavedSection
+          title="Konkursy grantowe"
+          emptyLabel="Brak zapisanych. Dodaj adres strony konkursu."
+          items={grants}
+          isScraping={scrapingKinds.grant}
+          urlInput={grantUrlInput}
+          setUrlInput={setGrantUrlInput}
+          onSelect={(url) => handleSelectSaved(url, "grant")}
+          onDelete={handleDeleteGrant}
+          onAdd={() => handleSelectSaved(grantUrlInput, "grant")}
+        />
+
         <div className="flex-1 space-y-1 overflow-y-auto border-t border-border pt-2">
+          <p className="px-1 pb-1 text-xs font-semibold uppercase tracking-wide text-muted">
+            Rozmowy
+          </p>
           {conversations.map((c) => (
             <div
               key={c.id}
