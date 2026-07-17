@@ -97,8 +97,13 @@ function SavedSection({
   onDelete: (id: string) => void;
   onAdd: () => void;
 }) {
-  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [showAdd, setShowAdd] = useState(false);
+  // Dymek z opisem pokazywany po najechaniu na pozycję; pozycjonowany na sztywno
+  // względem okna (fixed), by nie był przycinany przez przewijane menu boczne.
+  const [hover, setHover] = useState<{ id: string; top: number; left: number } | null>(
+    null,
+  );
+  const hovered = hover ? items.find((i) => i.id === hover.id) : null;
 
   return (
     <div className="border-t border-border pt-2">
@@ -110,45 +115,43 @@ function SavedSection({
           <p className="px-1 pb-1 text-xs text-muted">{emptyLabel}</p>
         )}
         {items.map((item) => (
-          <div key={item.id} className="rounded hover:bg-primary-soft">
-            <div className="group flex items-center">
-              <button
-                onClick={() => onSelect(item.rootUrl)}
-                disabled={isScraping}
-                title={item.rootUrl}
-                className="min-w-0 flex-1 truncate px-2 py-1.5 text-left text-sm text-foreground disabled:opacity-50"
-              >
-                {item.name}
-              </button>
-              {item.summary && (
-                <button
-                  onClick={() =>
-                    setExpandedId((prev) => (prev === item.id ? null : item.id))
-                  }
-                  aria-label="Pokaż opis"
-                  className="flex-shrink-0 px-1 text-xs text-muted hover:text-foreground"
-                >
-                  {expandedId === item.id ? "▾" : "▸"}
-                </button>
-              )}
-              <button
-                onClick={() => onDelete(item.id)}
-                aria-label="Usuń z zapisanych"
-                className="flex-shrink-0 px-2 text-muted opacity-0 hover:text-danger group-hover:opacity-100"
-              >
-                ×
-              </button>
-            </div>
-            {expandedId === item.id && item.summary && (
-              <div className="max-h-48 overflow-y-auto px-2 pb-2 text-xs text-muted [&_a]:underline [&_li]:ml-4 [&_ol]:list-decimal [&_p]:mb-1 [&_p:last-child]:mb-0 [&_ul]:list-disc">
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                  {item.summary}
-                </ReactMarkdown>
-              </div>
-            )}
+          <div
+            key={item.id}
+            className="group flex items-center rounded hover:bg-primary-soft"
+            onMouseEnter={(e) => {
+              if (!item.summary) return;
+              const r = e.currentTarget.getBoundingClientRect();
+              setHover({ id: item.id, top: r.top, left: r.right + 8 });
+            }}
+            onMouseLeave={() => setHover((h) => (h?.id === item.id ? null : h))}
+          >
+            <button
+              onClick={() => onSelect(item.rootUrl)}
+              disabled={isScraping}
+              title={item.rootUrl}
+              className="min-w-0 flex-1 truncate px-2 py-1.5 text-left text-sm text-foreground disabled:opacity-50"
+            >
+              {item.name}
+            </button>
+            <button
+              onClick={() => onDelete(item.id)}
+              aria-label="Usuń z zapisanych"
+              className="flex-shrink-0 px-2 text-muted opacity-0 hover:text-danger group-hover:opacity-100"
+            >
+              ×
+            </button>
           </div>
         ))}
       </div>
+
+      {hovered?.summary && hover && (
+        <div
+          style={{ position: "fixed", top: hover.top, left: hover.left }}
+          className="pointer-events-none z-50 max-h-[60vh] w-72 overflow-hidden rounded border border-border bg-surface p-3 text-xs text-muted shadow-lg [&_a]:underline [&_li]:ml-4 [&_ol]:list-decimal [&_p]:mb-1 [&_p:last-child]:mb-0 [&_ul]:list-disc"
+        >
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>{hovered.summary}</ReactMarkdown>
+        </div>
+      )}
       {showAdd ? (
         <form
           onSubmit={(e) => {
@@ -805,16 +808,9 @@ export default function ChatApp({
                       )}
                   </p>
                   {item.source.status === "done" && (
-                    <>
-                      <div className="text-foreground [&_a]:underline [&_li]:ml-4 [&_ol]:list-decimal [&_p]:mb-2 [&_p:last-child]:mb-0 [&_ul]:list-disc">
-                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                          {item.source.summary ?? ""}
-                        </ReactMarkdown>
-                      </div>
-                      <p className="mt-2 text-xs text-muted">
-                        Pobrano {item.source.pages.length} dokumentów.
-                      </p>
-                    </>
+                    <p className="text-xs text-muted">
+                      Przeanalizowano — pobrano {item.source.pages.length} dokumentów.
+                    </p>
                   )}
                   {item.source.status === "error" && (
                     <p className="text-danger">{SCRAPE_FAILED_MESSAGE}</p>
