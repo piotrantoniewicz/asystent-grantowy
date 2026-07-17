@@ -32,6 +32,9 @@ organizacjom pozarządowym pisać wnioski o granty. Dokumentacja jest przygotowa
 | `10-prawo-rodo.md` | RODO, polityka prywatności, cookies, regulamin — polskie prawo |
 | `11-plan-pracy.md` | Plan budowy krok po kroku + podstawy GitHuba |
 | `12-etap-3-5-poprawki.md` | Instrukcja wykonawcza Etapu 3.5: Postgres, limity, ochrona przed nadużyciami |
+| `13-audyt-poprawki.md` | Instrukcja poprawek P1–P17 z audytu kodu 2026-07-16 |
+| `14-ux-bez-tarcia.md` | Poprawki UX U1–U11: mniej tarcia przy scrapowaniu i starcie rozmowy |
+| `15-przeglad-kodu-poprawki.md` | Instrukcja poprawek N1–N11 z przeglądu kodu 2026-07-17 |
 | `CLAUDE-md-szablon.md` | Szablon pliku CLAUDE.md do głównego folderu projektu |
 
 ## Najważniejsze decyzje (podjęte 2026-07-11)

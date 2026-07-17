@@ -148,3 +148,17 @@ export async function refundQuestion(params: {
     });
   });
 }
+
+/**
+ * Kasuje przeterminowane klucze DZIENNE (ip:..., login:...) z tabeli FreeQuota.
+ * Kluczy device:... NIE kasujemy — to trwała pula na urządzenie.
+ */
+export async function cleanupOldFreeQuota(): Promise<void> {
+  const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  await prisma.freeQuota.deleteMany({
+    where: {
+      updatedAt: { lt: cutoff },
+      OR: [{ id: { startsWith: "ip:" } }, { id: { startsWith: "login:" } }],
+    },
+  });
+}

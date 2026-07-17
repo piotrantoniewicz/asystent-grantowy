@@ -7,7 +7,6 @@ const robotsCache = new Map<string, Promise<RobotsRules>>();
 function parseRobotsTxt(text: string): RobotsRules {
   const lines = text.split("\n").map((l) => l.trim());
   const disallow: string[] = [];
-  let appliesToUs = false;
   let inRelevantGroup = false;
 
   for (const line of lines) {
@@ -18,7 +17,6 @@ function parseRobotsTxt(text: string): RobotsRules {
 
     if (key === "user-agent") {
       inRelevantGroup = value === "*" || value.toLowerCase() === "asystentgrantowy";
-      if (value === "*") appliesToUs = true;
       continue;
     }
     if (key === "disallow" && inRelevantGroup && value) {
@@ -26,7 +24,6 @@ function parseRobotsTxt(text: string): RobotsRules {
     }
   }
 
-  if (!appliesToUs && disallow.length === 0) return { disallow: [] };
   return { disallow };
 }
 

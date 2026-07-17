@@ -31,7 +31,7 @@ export async function getAdminStats(): Promise<AdminStats> {
     questionsLast30Days,
     revenueTotal,
     revenueLast30Days,
-    assistantMessages,
+    assistantMessagesByModel,
     recentUserMessages,
   ] = await Promise.all([
     prisma.user.count(),
@@ -48,10 +48,11 @@ export async function getAdminStats(): Promise<AdminStats> {
       where: { status: "paid", createdAt: { gte: thirtyDaysAgo } },
       _sum: { amountPln: true },
     }),
-    prisma.message.findMany({
+    prisma.message.groupBy({
+      by: ["modelUsed"],
       where: { role: "assistant", modelUsed: { not: null } },
-      select: {
-        modelUsed: true,
+      _count: { _all: true },
+      _sum: {
         inputTokens: true,
         outputTokens: true,
         cacheCreationInputTokens: true,
@@ -67,26 +68,21 @@ export async function getAdminStats(): Promise<AdminStats> {
   const modelUsage: Record<string, number> = {};
   let estimatedAiCostUsd = 0;
 
-  for (const message of assistantMessages) {
-    const model = message.modelUsed!;
-    modelUsage[model] = (modelUsage[model] ?? 0) + 1;
+  for (const row of assistantMessagesByModel) {
+    const model = row.modelUsed!;
+    modelUsage[model] = row._count._all;
 
     const pricing = PRICING_USD_PER_MTOK[model];
     if (!pricing) continue;
 
-    const inputTokens = message.inputTokens ?? 0;
-    const outputTokens = message.outputTokens ?? 0;
-    const cacheWriteTokens = message.cacheCreationInputTokens ?? 0;
-    const cacheReadTokens = message.cacheReadInputTokens ?? 0;
-
     const billedInputTokens =
-      inputTokens +
-      cacheWriteTokens * CACHE_WRITE_MULTIPLIER +
-      cacheReadTokens * CACHE_READ_MULTIPLIER;
+      (row._sum.inputTokens ?? 0) +
+      (row._sum.cacheCreationInputTokens ?? 0) * CACHE_WRITE_MULTIPLIER +
+      (row._sum.cacheReadInputTokens ?? 0) * CACHE_READ_MULTIPLIER;
 
     estimatedAiCostUsd +=
       (billedInputTokens * pricing.input) / 1_000_000 +
-      (outputTokens * pricing.output) / 1_000_000;
+      ((row._sum.outputTokens ?? 0) * pricing.output) / 1_000_000;
   }
 
   const dailyCounts = new Map<string, number>();

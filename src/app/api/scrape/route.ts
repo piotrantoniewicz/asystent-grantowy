@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { assertSafeUrl, normalizeUrlInput } from "@/lib/scraper/ssrf";
 import { crawlSite, type ScrapeKind } from "@/lib/scraper/crawl";
+import { SCRAPE_FAILED_MESSAGE } from "@/lib/scraper/messages";
 import { summarizeScrape } from "@/lib/scraper/summarize";
 
 export const maxDuration = 300;
@@ -138,8 +139,7 @@ export async function POST(request: Request) {
           });
           send({
             event: "error",
-            error:
-              "Nie udało się pobrać treści z tej strony. Spróbuj wkleić link bezpośrednio do dokumentu z regulaminem (najczęściej plik PDF).",
+            error: SCRAPE_FAILED_MESSAGE,
           });
           return;
         }

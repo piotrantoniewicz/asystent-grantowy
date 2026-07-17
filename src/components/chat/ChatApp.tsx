@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { SCRAPE_FAILED_MESSAGE } from "@/lib/scraper/messages";
 
 type Conversation = {
   id: string;
@@ -625,10 +626,7 @@ export default function ChatApp({
                     </>
                   )}
                   {item.source.status === "error" && (
-                    <p className="text-danger">
-                      Nie udało się pobrać treści z tej strony. Spróbuj wkleić link
-                      bezpośrednio do dokumentu z regulaminem (najczęściej plik PDF).
-                    </p>
+                    <p className="text-danger">{SCRAPE_FAILED_MESSAGE}</p>
                   )}
                 </div>
               ),
