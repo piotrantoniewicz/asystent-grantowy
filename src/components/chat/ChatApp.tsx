@@ -119,7 +119,6 @@ function SavedSection({
             key={item.id}
             className="group flex items-center rounded hover:bg-primary-soft"
             onMouseEnter={(e) => {
-              if (!item.summary) return;
               const r = e.currentTarget.getBoundingClientRect();
               setHover({ id: item.id, top: r.top, left: r.right + 8 });
             }}
@@ -128,7 +127,6 @@ function SavedSection({
             <button
               onClick={() => onSelect(item.rootUrl)}
               disabled={isScraping}
-              title={item.rootUrl}
               className="min-w-0 flex-1 truncate px-2 py-1.5 text-left text-sm text-foreground disabled:opacity-50"
             >
               {item.name}
@@ -144,12 +142,21 @@ function SavedSection({
         ))}
       </div>
 
-      {hovered?.summary && hover && (
+      {hovered && hover && (
         <div
           style={{ position: "fixed", top: hover.top, left: hover.left }}
-          className="pointer-events-none z-50 max-h-[60vh] w-72 overflow-hidden rounded border border-border bg-surface p-3 text-xs text-muted shadow-lg [&_a]:underline [&_li]:ml-4 [&_ol]:list-decimal [&_p]:mb-1 [&_p:last-child]:mb-0 [&_ul]:list-disc"
+          className="pointer-events-none z-50 max-h-[60vh] w-72 overflow-hidden rounded border border-border bg-surface p-3 text-xs shadow-lg"
         >
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>{hovered.summary}</ReactMarkdown>
+          <p className="mb-1 font-semibold text-foreground">{hovered.name}</p>
+          {hovered.summary ? (
+            <div className="text-muted [&_a]:underline [&_li]:ml-4 [&_ol]:list-decimal [&_p]:mb-1 [&_p:last-child]:mb-0 [&_ul]:list-disc">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {hovered.summary}
+              </ReactMarkdown>
+            </div>
+          ) : (
+            <p className="break-all text-muted">{hovered.rootUrl}</p>
+          )}
         </div>
       )}
       {showAdd ? (
