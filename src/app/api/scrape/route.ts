@@ -116,6 +116,29 @@ export async function POST(request: Request) {
           data: { status: "done", summary },
         });
 
+        if (kind === "grant") {
+          const current = await prisma.conversation.findUnique({
+            where: { id: conversationId },
+            select: { title: true },
+          });
+          if (current?.title === "Nowa rozmowa") {
+            const grantTitle = result.pages[0]?.title?.trim();
+            if (grantTitle) {
+              const orgSource = await prisma.scrapedSource.findFirst({
+                where: { conversationId, kind: "organization", status: "done" },
+                orderBy: { createdAt: "desc" },
+                include: { pages: { orderBy: { createdAt: "asc" }, take: 1 } },
+              });
+              const orgName = orgSource?.pages[0]?.title?.trim();
+              const title = (orgName ? `${grantTitle} — ${orgName}` : grantTitle).slice(0, 60);
+              await prisma.conversation.update({
+                where: { id: conversationId },
+                data: { title },
+              });
+            }
+          }
+        }
+
         send({ event: "done", sourceId: source.id, summary, trimmed: result.trimmed });
       } catch (error) {
         console.error("Błąd scrapingu:", error);
