@@ -162,8 +162,16 @@ export async function POST(request: Request) {
     const orderedSources = [...conversation.scrapedSources].sort((a, b) =>
       a.kind === b.kind ? 0 : a.kind === "organization" ? -1 : 1,
     );
-    for (const source of orderedSources) {
+    // Każde źródło dostaje sprawiedliwy udział w pozostałym budżecie (dzielony
+    // na tyle części, ile źródeł zostało), a niewykorzystana reszta przechodzi
+    // na kolejne źródła — tak duże źródło (np. organizacja) nie może wyprzeć
+    // konkursu z kontekstu w całości.
+    for (let i = 0; i < orderedSources.length; i += 1) {
       if (scrapedBudget <= 0) break;
+      const source = orderedSources[i];
+      const remainingSources = orderedSources.length - i;
+      let sourceBudget = Math.floor(scrapedBudget / remainingSources);
+
       const label =
         source.kind === "organization"
           ? "STRONA ORGANIZACJI (podmiot, który ubiega się o grant)"
@@ -171,18 +179,18 @@ export async function POST(request: Request) {
       const heading =
         `## ${label}\n` +
         (source.summary ? `Notatka (podsumowanie): ${source.summary}\n` : "");
-      scrapedParts.push(heading);
-      scrapedBudget -= heading.length;
+      const headingPart = heading.slice(0, sourceBudget);
+      scrapedParts.push(headingPart);
+      sourceBudget -= headingPart.length;
+      scrapedBudget -= headingPart.length;
+
       for (const page of source.pages) {
-        if (scrapedBudget <= 0) break;
+        if (sourceBudget <= 0) break;
         const part = `### ${page.title} (${page.url})\n${page.textContent}`;
-        if (part.length > scrapedBudget) {
-          scrapedParts.push(part.slice(0, scrapedBudget));
-          scrapedBudget = 0;
-        } else {
-          scrapedParts.push(part);
-          scrapedBudget -= part.length;
-        }
+        const sliced = part.slice(0, sourceBudget);
+        scrapedParts.push(sliced);
+        sourceBudget -= sliced.length;
+        scrapedBudget -= sliced.length;
       }
     }
     const scrapedContent = scrapedParts.join("\n\n");

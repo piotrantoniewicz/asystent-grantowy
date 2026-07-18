@@ -85,21 +85,24 @@ export async function POST(request: Request) {
       };
 
       try {
-        // U10: dla organizacji kopiuj ostatnie udane pobranie tego samego adresu
-        // zamiast crawlować ponownie — strona konkursu zawsze musi być świeża.
-        const reusableSource =
-          kind === "organization" && !forceRefresh
-            ? await prisma.scrapedSource.findFirst({
-                where: {
-                  kind: "organization",
-                  rootUrl: safeUrl.toString(),
-                  status: "done",
-                  conversation: { userId },
-                },
-                orderBy: { createdAt: "desc" },
-                include: { pages: true },
-              })
-            : null;
+        // U10: kopiuj ostatnie udane pobranie tego samego adresu zamiast
+        // crawlować ponownie. Dla organizacji bez ograniczenia czasowego;
+        // strona konkursu ma być świeża, więc kopiujemy tylko pobrania
+        // młodsze niż 24 h — starsze trafiają do pełnego crawla jak dotąd.
+        const grantReuseCutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
+        const reusableSource = !forceRefresh
+          ? await prisma.scrapedSource.findFirst({
+              where: {
+                kind,
+                rootUrl: safeUrl.toString(),
+                status: "done",
+                conversation: { userId },
+                ...(kind === "grant" ? { createdAt: { gte: grantReuseCutoff } } : {}),
+              },
+              orderBy: { createdAt: "desc" },
+              include: { pages: true },
+            })
+          : null;
 
         if (reusableSource) {
           await prisma.scrapedPage.createMany({
@@ -115,12 +118,33 @@ export async function POST(request: Request) {
             where: { id: source.id },
             data: { status: "done", summary: reusableSource.summary },
           });
-          await prisma.userOrganization
-            .update({
+
+          const reusedTitle = reusableSource.pages[0]?.title?.trim();
+          const reusedName = (reusedTitle || safeUrl.hostname).slice(0, 60);
+          if (kind === "organization") {
+            await prisma.userOrganization.upsert({
               where: { userId_rootUrl: { userId, rootUrl: safeUrl.toString() } },
-              data: { rootUrl: safeUrl.toString() },
-            })
-            .catch(() => {});
+              create: {
+                userId,
+                rootUrl: safeUrl.toString(),
+                name: reusedName,
+                summary: reusableSource.summary,
+              },
+              update: { name: reusedName, summary: reusableSource.summary },
+            });
+          } else {
+            await prisma.userGrant.upsert({
+              where: { userId_rootUrl: { userId, rootUrl: safeUrl.toString() } },
+              create: {
+                userId,
+                rootUrl: safeUrl.toString(),
+                name: reusedName,
+                summary: reusableSource.summary,
+              },
+              update: { name: reusedName, summary: reusableSource.summary },
+            });
+          }
+
           send({
             event: "done",
             sourceId: source.id,
