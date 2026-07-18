@@ -68,6 +68,7 @@ function looksLikeBareUrl(text: string): boolean {
 
 type SavedSource = {
   id: string;
+  kind: "organization" | "grant";
   rootUrl: string;
   name: string;
   summary: string | null;
@@ -366,9 +367,10 @@ export default function ChatApp({
     Record<ScrapeKind, ScrapeProgress | null>
   >({ organization: null, grant: null });
   const [pendingUrl, setPendingUrl] = useState<string | null>(null);
-  const [organizations, setOrganizations] = useState<SavedSource[]>([]);
-  const [grants, setGrants] = useState<SavedSource[]>([]);
+  const [savedSources, setSavedSources] = useState<SavedSource[]>([]);
   const [savedError, setSavedError] = useState<string | null>(null);
+  const organizations = savedSources.filter((s) => s.kind === "organization");
+  const grants = savedSources.filter((s) => s.kind === "grant");
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const autoScrapedForRef = useRef<string | null>(null);
@@ -381,13 +383,9 @@ export default function ChatApp({
   }, [messages.length]);
 
   function refreshSavedSources() {
-    fetch("/api/organizations")
+    fetch("/api/saved-sources")
       .then((r) => (r.ok ? r.json() : []))
-      .then((data) => setOrganizations(Array.isArray(data) ? data : []))
-      .catch(() => {});
-    fetch("/api/grants")
-      .then((r) => (r.ok ? r.json() : []))
-      .then((data) => setGrants(Array.isArray(data) ? data : []))
+      .then((data) => setSavedSources(Array.isArray(data) ? data : []))
       .catch(() => {});
   }
 
@@ -418,13 +416,20 @@ export default function ChatApp({
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, sources, scrapeProgress, isThinking]);
 
-  async function handleNewConversation() {
+  // Tworzy nową rozmowę: POST, dopisanie na początek listy, ustawienie jako
+  // aktywnej i wyczyszczenie widoku wiadomości/źródeł. Zwraca id nowej rozmowy.
+  async function createConversation(): Promise<string> {
     const res = await fetch("/api/conversations", { method: "POST" });
     const conversation = await res.json();
     setConversations((prev) => [conversation, ...prev]);
     setActiveId(conversation.id);
     setMessages([]);
     setSources([]);
+    return conversation.id;
+  }
+
+  async function handleNewConversation() {
+    await createConversation();
     setSidebarOpen(false);
   }
 
@@ -440,20 +445,17 @@ export default function ChatApp({
     }
   }
 
+  // W przeciwieństwie do handleSelectSaved: reużywa aktywną rozmowę, jeśli
+  // istnieje (nie tworzy nowej przy każdej wiadomości w toku rozmowy).
   async function ensureConversationId(firstMessageTitle?: string): Promise<string> {
     if (activeId) return activeId;
-    const res = await fetch("/api/conversations", { method: "POST" });
-    const conversation = await res.json();
-    setConversations((prev) => [conversation, ...prev]);
-    setActiveId(conversation.id);
+    const id = await createConversation();
     if (firstMessageTitle) {
       setConversations((prev) =>
-        prev.map((c) =>
-          c.id === conversation.id ? { ...c, title: firstMessageTitle } : c,
-        ),
+        prev.map((c) => (c.id === id ? { ...c, title: firstMessageTitle } : c)),
       );
     }
-    return conversation.id;
+    return id;
   }
 
   async function handleScrape(
@@ -562,18 +564,10 @@ export default function ChatApp({
   async function handleSelectSaved(url: string, kind: ScrapeKind) {
     if (scrapingKinds[kind]) return;
     const isEmpty = messages.length === 0 && sources.length === 0;
-    let conversationId = activeId;
-    if (!isEmpty || !conversationId) {
-      const res = await fetch("/api/conversations", { method: "POST" });
-      const conversation = await res.json();
-      setConversations((prev) => [conversation, ...prev]);
-      setActiveId(conversation.id);
-      setMessages([]);
-      setSources([]);
-      conversationId = conversation.id;
-    }
+    const conversationId =
+      !isEmpty || !activeId ? await createConversation() : activeId;
     setSidebarOpen(false);
-    await handleScrape(url, kind, false, conversationId ?? undefined);
+    await handleScrape(url, kind, false, conversationId);
   }
 
   async function handleDeleteSaved(kind: ScrapeKind, id: string) {
@@ -584,19 +578,14 @@ export default function ChatApp({
     if (!confirm(confirmLabel)) return;
 
     setSavedError(null);
-    const endpoint = kind === "organization" ? `/api/organizations/${id}` : `/api/grants/${id}`;
-    const res = await fetch(endpoint, { method: "DELETE" }).catch(() => null);
+    const res = await fetch(`/api/saved-sources/${id}`, { method: "DELETE" }).catch(() => null);
 
     if (!res || !res.ok) {
       setSavedError("Nie udało się usunąć. Spróbuj ponownie.");
       return;
     }
 
-    if (kind === "organization") {
-      setOrganizations((prev) => prev.filter((o) => o.id !== id));
-    } else {
-      setGrants((prev) => prev.filter((g) => g.id !== id));
-    }
+    setSavedSources((prev) => prev.filter((s) => s.id !== id));
   }
 
   async function handleSend() {

@@ -121,29 +121,17 @@ export async function POST(request: Request) {
 
           const reusedTitle = reusableSource.pages[0]?.title?.trim();
           const reusedName = (reusedTitle || safeUrl.hostname).slice(0, 60);
-          if (kind === "organization") {
-            await prisma.userOrganization.upsert({
-              where: { userId_rootUrl: { userId, rootUrl: safeUrl.toString() } },
-              create: {
-                userId,
-                rootUrl: safeUrl.toString(),
-                name: reusedName,
-                summary: reusableSource.summary,
-              },
-              update: { name: reusedName, summary: reusableSource.summary },
-            });
-          } else {
-            await prisma.userGrant.upsert({
-              where: { userId_rootUrl: { userId, rootUrl: safeUrl.toString() } },
-              create: {
-                userId,
-                rootUrl: safeUrl.toString(),
-                name: reusedName,
-                summary: reusableSource.summary,
-              },
-              update: { name: reusedName, summary: reusableSource.summary },
-            });
-          }
+          await prisma.savedSource.upsert({
+            where: { userId_kind_rootUrl: { userId, kind, rootUrl: safeUrl.toString() } },
+            create: {
+              userId,
+              kind,
+              rootUrl: safeUrl.toString(),
+              name: reusedName,
+              summary: reusableSource.summary,
+            },
+            update: { name: reusedName, summary: reusableSource.summary },
+          });
 
           send({
             event: "done",
@@ -185,31 +173,21 @@ export async function POST(request: Request) {
           data: { status: "done", summary },
         });
 
-        if (kind === "organization") {
-          const rootTitle = result.pages[0]?.title?.trim();
-          const name = (rootTitle || safeUrl.hostname).slice(0, 60);
-          await prisma.userOrganization.upsert({
-            where: { userId_rootUrl: { userId, rootUrl: safeUrl.toString() } },
-            create: { userId, rootUrl: safeUrl.toString(), name, summary },
-            update: { name, summary },
-          });
-        }
+        const rootTitle = result.pages[0]?.title?.trim();
+        const name = (rootTitle || safeUrl.hostname).slice(0, 60);
+        await prisma.savedSource.upsert({
+          where: { userId_kind_rootUrl: { userId, kind, rootUrl: safeUrl.toString() } },
+          create: { userId, kind, rootUrl: safeUrl.toString(), name, summary },
+          update: { name, summary },
+        });
 
         if (kind === "grant") {
-          const rootTitle = result.pages[0]?.title?.trim();
-          const name = (rootTitle || safeUrl.hostname).slice(0, 60);
-          await prisma.userGrant.upsert({
-            where: { userId_rootUrl: { userId, rootUrl: safeUrl.toString() } },
-            create: { userId, rootUrl: safeUrl.toString(), name, summary },
-            update: { name, summary },
-          });
-
           const current = await prisma.conversation.findUnique({
             where: { id: conversationId },
             select: { title: true },
           });
           if (current?.title === "Nowa rozmowa") {
-            const grantTitle = result.pages[0]?.title?.trim();
+            const grantTitle = rootTitle;
             if (grantTitle) {
               const orgSource = await prisma.scrapedSource.findFirst({
                 where: { conversationId, kind: "organization", status: "done" },

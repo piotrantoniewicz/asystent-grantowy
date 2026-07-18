@@ -12,16 +12,12 @@ export async function DELETE(
   }
   const { id } = await params;
 
-  const grant = await prisma.userGrant.findUnique({
-    where: { id },
-    select: { userId: true },
+  const result = await prisma.savedSource.deleteMany({
+    where: { id, userId: session.user.id },
   });
-
-  if (!grant || grant.userId !== session.user.id) {
-    return NextResponse.json({ error: "Nie znaleziono konkursu." }, { status: 404 });
+  if (result.count === 0) {
+    return NextResponse.json({ error: "Nie znaleziono." }, { status: 404 });
   }
-
-  await prisma.userGrant.delete({ where: { id } });
 
   return NextResponse.json({ ok: true });
 }
