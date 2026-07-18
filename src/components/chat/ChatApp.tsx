@@ -81,8 +81,6 @@ function SavedSection({
   emptyLabel,
   items,
   isScraping,
-  urlInput,
-  setUrlInput,
   onSelect,
   onDelete,
   onAdd,
@@ -91,19 +89,20 @@ function SavedSection({
   emptyLabel: string;
   items: SavedSource[];
   isScraping: boolean;
-  urlInput: string;
-  setUrlInput: (value: string) => void;
   onSelect: (url: string) => void;
   onDelete: (id: string) => void;
-  onAdd: () => void;
+  onAdd: (url: string) => void;
 }) {
   const [showAdd, setShowAdd] = useState(false);
+  const [urlInput, setUrlInput] = useState("");
   // Dymek z opisem pokazywany po najechaniu na pozycję; pozycjonowany na sztywno
   // względem okna (fixed), by nie był przycinany przez przewijane menu boczne.
   const [hover, setHover] = useState<{ id: string; top: number; left: number } | null>(
     null,
   );
   const hovered = hover ? items.find((i) => i.id === hover.id) : null;
+  // Rozwinięcie opisu pod wierszem — ścieżka dotykowa, bo hover nie działa na dotyku.
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   return (
     <div className="border-t border-border pt-2">
@@ -115,29 +114,52 @@ function SavedSection({
           <p className="px-1 pb-1 text-xs text-muted">{emptyLabel}</p>
         )}
         {items.map((item) => (
-          <div
-            key={item.id}
-            className="group flex items-center rounded hover:bg-primary-soft"
-            onMouseEnter={(e) => {
-              const r = e.currentTarget.getBoundingClientRect();
-              setHover({ id: item.id, top: r.top, left: r.right + 8 });
-            }}
-            onMouseLeave={() => setHover((h) => (h?.id === item.id ? null : h))}
-          >
-            <button
-              onClick={() => onSelect(item.rootUrl)}
-              disabled={isScraping}
-              className="min-w-0 flex-1 truncate px-2 py-1.5 text-left text-sm text-foreground disabled:opacity-50"
+          <div key={item.id}>
+            <div
+              className="group flex items-center rounded hover:bg-primary-soft"
+              onMouseEnter={(e) => {
+                const r = e.currentTarget.getBoundingClientRect();
+                setHover({ id: item.id, top: r.top, left: r.right + 8 });
+              }}
+              onMouseLeave={() => setHover((h) => (h?.id === item.id ? null : h))}
             >
-              {item.name}
-            </button>
-            <button
-              onClick={() => onDelete(item.id)}
-              aria-label="Usuń z zapisanych"
-              className="flex-shrink-0 px-2 text-muted opacity-0 hover:text-danger group-hover:opacity-100"
-            >
-              ×
-            </button>
+              <button
+                onClick={() => onSelect(item.rootUrl)}
+                disabled={isScraping}
+                className="min-w-0 flex-1 truncate px-2 py-1.5 text-left text-sm text-foreground disabled:opacity-50"
+              >
+                {item.name}
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setExpandedId((prev) => (prev === item.id ? null : item.id));
+                }}
+                aria-label="Pokaż opis"
+                className="flex-shrink-0 px-1.5 text-muted hover:text-foreground"
+              >
+                ⓘ
+              </button>
+              <button
+                onClick={() => onDelete(item.id)}
+                aria-label="Usuń z zapisanych"
+                className="flex-shrink-0 px-2 text-muted opacity-0 hover:text-danger group-hover:opacity-100"
+              >
+                ×
+              </button>
+            </div>
+            {expandedId === item.id && (
+              <div className="mx-1 mb-1 rounded border border-border bg-surface p-3 text-xs">
+                <p className="mb-1 font-semibold text-foreground">{item.name}</p>
+                {item.summary ? (
+                  <div className="text-muted [&_a]:underline [&_li]:ml-4 [&_ol]:list-decimal [&_p]:mb-1 [&_p:last-child]:mb-0 [&_ul]:list-disc">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{item.summary}</ReactMarkdown>
+                  </div>
+                ) : (
+                  <p className="break-all text-muted">{item.rootUrl}</p>
+                )}
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -163,7 +185,8 @@ function SavedSection({
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            onAdd();
+            onAdd(urlInput);
+            setUrlInput("");
           }}
           className="mt-1 flex gap-1 px-1"
         >
@@ -345,6 +368,7 @@ export default function ChatApp({
   const [pendingUrl, setPendingUrl] = useState<string | null>(null);
   const [organizations, setOrganizations] = useState<SavedSource[]>([]);
   const [grants, setGrants] = useState<SavedSource[]>([]);
+  const [savedError, setSavedError] = useState<string | null>(null);
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const autoScrapedForRef = useRef<string | null>(null);
@@ -358,12 +382,12 @@ export default function ChatApp({
 
   function refreshSavedSources() {
     fetch("/api/organizations")
-      .then((r) => r.json())
-      .then(setOrganizations)
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data) => setOrganizations(Array.isArray(data) ? data : []))
       .catch(() => {});
     fetch("/api/grants")
-      .then((r) => r.json())
-      .then(setGrants)
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data) => setGrants(Array.isArray(data) ? data : []))
       .catch(() => {});
   }
 
@@ -552,16 +576,27 @@ export default function ChatApp({
     await handleScrape(url, kind, false, conversationId ?? undefined);
   }
 
-  async function handleDeleteOrganization(id: string) {
-    if (!confirm("Usunąć tę organizację z zapisanych? Rozmowy pozostaną nietknięte.")) return;
-    await fetch(`/api/organizations/${id}`, { method: "DELETE" });
-    setOrganizations((prev) => prev.filter((o) => o.id !== id));
-  }
+  async function handleDeleteSaved(kind: ScrapeKind, id: string) {
+    const confirmLabel =
+      kind === "organization"
+        ? "Usunąć tę organizację z zapisanych? Rozmowy pozostaną nietknięte."
+        : "Usunąć ten konkurs z zapisanych? Rozmowy pozostaną nietknięte.";
+    if (!confirm(confirmLabel)) return;
 
-  async function handleDeleteGrant(id: string) {
-    if (!confirm("Usunąć ten konkurs z zapisanych? Rozmowy pozostaną nietknięte.")) return;
-    await fetch(`/api/grants/${id}`, { method: "DELETE" });
-    setGrants((prev) => prev.filter((g) => g.id !== id));
+    setSavedError(null);
+    const endpoint = kind === "organization" ? `/api/organizations/${id}` : `/api/grants/${id}`;
+    const res = await fetch(endpoint, { method: "DELETE" }).catch(() => null);
+
+    if (!res || !res.ok) {
+      setSavedError("Nie udało się usunąć. Spróbuj ponownie.");
+      return;
+    }
+
+    if (kind === "organization") {
+      setOrganizations((prev) => prev.filter((o) => o.id !== id));
+    } else {
+      setGrants((prev) => prev.filter((g) => g.id !== id));
+    }
   }
 
   async function handleSend() {
@@ -676,16 +711,18 @@ export default function ChatApp({
           + Nowa rozmowa
         </button>
 
+        {savedError && (
+          <p className="rounded bg-danger-soft px-2 py-1 text-xs text-danger">{savedError}</p>
+        )}
+
         <SavedSection
           title="Moje organizacje"
           emptyLabel="Brak zapisanych. Dodaj adres strony swojej organizacji."
           items={organizations}
           isScraping={scrapingKinds.organization}
-          urlInput={orgUrlInput}
-          setUrlInput={setOrgUrlInput}
           onSelect={(url) => handleSelectSaved(url, "organization")}
-          onDelete={handleDeleteOrganization}
-          onAdd={() => handleSelectSaved(orgUrlInput, "organization")}
+          onDelete={(id) => handleDeleteSaved("organization", id)}
+          onAdd={(url) => handleSelectSaved(url, "organization")}
         />
 
         <SavedSection
@@ -693,11 +730,9 @@ export default function ChatApp({
           emptyLabel="Brak zapisanych. Dodaj adres strony konkursu."
           items={grants}
           isScraping={scrapingKinds.grant}
-          urlInput={grantUrlInput}
-          setUrlInput={setGrantUrlInput}
           onSelect={(url) => handleSelectSaved(url, "grant")}
-          onDelete={handleDeleteGrant}
-          onAdd={() => handleSelectSaved(grantUrlInput, "grant")}
+          onDelete={(id) => handleDeleteSaved("grant", id)}
+          onAdd={(url) => handleSelectSaved(url, "grant")}
         />
 
         <div className="flex-1 space-y-1 overflow-y-auto border-t border-border pt-2">
