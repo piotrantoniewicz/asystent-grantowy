@@ -11,6 +11,9 @@ export default defineConfig({
     path: "prisma/migrations",
   },
   datasource: {
-    url: process.env["DATABASE_URL"],
+    // Direct (non-pooled) connection: prisma migrate needs a session-level
+    // advisory lock, which hangs indefinitely through the PgBouncer pooler
+    // used by DATABASE_URL.
+    url: process.env["DIRECT_URL"],
   },
 });
