@@ -10,7 +10,7 @@ export default async function LogowaniePage({
   const { callbackUrl, error } = await searchParams;
 
   return (
-    <main className="flex min-h-full items-center justify-center bg-background px-4">
+    <main className="flex flex-1 items-center justify-center bg-background px-4">
       <div className="w-full max-w-sm space-y-6 rounded border border-border bg-surface p-8 shadow-sm">
         <div className="space-y-3 text-center">
           <Brand className="justify-center" />

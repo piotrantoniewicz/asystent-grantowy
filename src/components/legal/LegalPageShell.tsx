@@ -7,7 +7,7 @@ export default function LegalPageShell({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-full bg-background">
+    <div className="flex-1 bg-background">
       <div className="mx-auto flex max-w-2xl flex-col gap-6 p-6">
         <div className="flex items-center justify-between">
           <Brand />
