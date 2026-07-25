@@ -73,6 +73,18 @@ dodaj każdą z poniższych zmiennych osobno:
 | `ANTHROPIC_API_KEY` | Twój klucz z console.anthropic.com |
 | `STRIPE_SECRET_KEY` | klucz **produkcyjny** ze Stripe (Krok 5 — na razie może być testowy, podmienisz później) |
 | `STRIPE_WEBHOOK_SECRET` | uzupełnisz w Kroku 5, po utworzeniu webhooka |
+| `DIRECT_URL` | **bezpośredni** (non-pooled) connection string z Neona — patrz uwaga niżej |
+
+**Uwaga o `DIRECT_URL` (dodane 2026-07-25 po realnym problemie na produkcji):**
+Neon domyślnie pokazuje **pooled** connection string (host z `-pooler` w nazwie) —
+to jest `DATABASE_URL`, dobry dla aplikacji w działaniu. Ale `npx prisma migrate
+deploy` (część Build Command z tego kroku) potrzebuje osobnego, **bezpośredniego**
+połączenia do bazy, bez poolera — inaczej migracja zawiesza się na 10 sekund i pada
+z błędem `P1002: Timed out trying to acquire a postgres advisory lock`. W Neon
+dashboardzie → **Connect** → wyłącz przełącznik „Connection pooling", skopiuj ten
+drugi string (host **bez** `-pooler`) i dodaj go jako `DIRECT_URL`. Dodaj tę zmienną
+dla **obu** środowisk (Production i Preview), inaczej PR-y (które budują się jako
+Preview) będą padać tym samym błędem.
 
 Kliknij **Deploy**. Pierwsze wdrożenie się powiedzie nawet z tymczasowymi kluczami —
 dostaniesz roboczy adres w stylu `asystent-grantowy-xyz.vercel.app`, potem podepniesz
@@ -185,3 +197,19 @@ zakończeniu wróć do docelowej wartości.
 Wklej pełną treść błędu (z Vercel „Deployments" → wejdź w nieudany deploy → „Build
 Logs", albo z konsoli przeglądarki) i opisz, co robiłeś krok po kroku — narzędzie AI
 pomoże to zdiagnozować na miejscu.
+
+**Build pada na `prisma migrate deploy` z błędem `P1002` / advisory lock timeout:**
+brakuje zmiennej `DIRECT_URL` (patrz Krok 3) albo jest ustawiona tylko dla jednego
+środowiska (np. Production, ale nie Preview).
+
+---
+
+## Historia zmian po pierwszym wdrożeniu
+
+- **2026-07-25** — dodano Vercel Web Analytics (`@vercel/analytics`, komponent
+  `<Analytics />` w `src/app/layout.tsx`); dodano `DIRECT_URL` po tym, jak pierwszy
+  produkcyjny deploy po dłuższej przerwie zaczął padać na advisory lock (patrz wyżej);
+  przy tej okazji zrotowano hasło do roli `neondb_owner` w Neonie (stare przeszło przez
+  czat z asystentem AI podczas debugowania) — zaktualizowano `DATABASE_URL` i
+  `DIRECT_URL` nowym hasłem dla Production i Preview, zweryfikowano na żywo (build +
+  logowanie bez błędów runtime).
