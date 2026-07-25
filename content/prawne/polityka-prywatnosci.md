@@ -1,6 +1,6 @@
 # Polityka prywatności
 
-*Ostatnia aktualizacja: 16 lipca 2026*
+*Ostatnia aktualizacja: 25 lipca 2026*
 
 ## 1. Administrator danych
 
@@ -18,6 +18,7 @@ E-mail kontaktowy: [UZUPEŁNIĆ: adres e-mail]
 | Treść rozmów, w tym dane wpisane do czatu | Świadczenie usługi asystenta AI | Art. 6 ust. 1 lit. b RODO (umowa) |
 | Dane płatności | Obsługa płatności przez Stripe — nie widzimy numeru karty; dane rozliczeniowe przechowujemy zgodnie z obowiązkiem prawnym | Art. 6 ust. 1 lit. c RODO (obowiązek prawny) |
 | Adres IP, logi | Bezpieczeństwo usługi, ochrona przed nadużyciami | Art. 6 ust. 1 lit. f RODO (uzasadniony interes) |
+| Zagregowane, anonimowe statystyki odwiedzin (bez plików cookie i identyfikatorów użytkownika) | Analiza ruchu na stronie i poprawa jakości usługi (Vercel Web Analytics) | Art. 6 ust. 1 lit. f RODO (uzasadniony interes) |
 | Podgląd rozmów przez administratora serwisu | Kontrola jakości i bezpieczeństwa usługi | Art. 6 ust. 1 lit. f RODO (uzasadniony interes) |
 
 ## 3. Odbiorcy danych (podmioty przetwarzające)
