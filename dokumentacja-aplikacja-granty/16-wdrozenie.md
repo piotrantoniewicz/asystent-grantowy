@@ -36,7 +36,7 @@ testowe nie mieszały się z prawdziwymi klientami.
    `postgresql://...`). Zapisz go tymczasowo w notatniku — to będzie produkcyjny
    `DATABASE_URL`.
 
-postgresql://neondb_owner:npg_SWQ8CxnBXm5k@ep-wispy-mud-ag0bi4wg-pooler.c-2.eu-central-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
+
 
 ---
 
