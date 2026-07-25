@@ -51,3 +51,7 @@ next-env.d.ts
 
 # katalogi robocze Claude Code (worktree)
 .claude/worktrees/
+
+# notatki robocze / instrukcje dla agenta i zrzuty ekranu (nie do publicznego repo)
+/POPRAWKI-*.md
+/Zrzut ekranu*.png
