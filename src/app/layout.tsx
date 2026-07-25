@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { DM_Sans, DM_Serif_Display, Geist_Mono } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 import Footer from "@/components/layout/Footer";
 import CookieBanner from "@/components/layout/CookieBanner";
@@ -40,6 +41,7 @@ export default function RootLayout({
         <div className="flex min-h-0 flex-1 flex-col">{children}</div>
         <CookieBanner />
         <Footer />
+        <Analytics />
       </body>
     </html>
   );
