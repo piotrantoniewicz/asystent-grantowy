@@ -119,6 +119,11 @@ model ScrapedSource {
   rootUrl        String
   status         ScrapedSourceStatus @default(pending)
   summary        String?
+  // Gotowy, przycięty kawałek promptu z treścią tego źródła — składany raz po
+  // scrapowaniu (`buildSourceContext`). Dzięki temu przy każdym pytaniu czytamy
+  // jeden wiersz zamiast wszystkich stron. Puste dla źródeł sprzed tej zmiany
+  // — wtedy `chat/route.ts` składa go w locie i uzupełnia.
+  contextBlob    String?
   createdAt      DateTime            @default(now())
 
   conversation Conversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)

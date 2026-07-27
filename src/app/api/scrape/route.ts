@@ -6,6 +6,7 @@ import { crawlSite, type ScrapeKind } from "@/lib/scraper/crawl";
 import { SCRAPE_FAILED_MESSAGE } from "@/lib/scraper/messages";
 import { summarizeScrape } from "@/lib/scraper/summarize";
 import { AI_CONFIG_ERROR_MESSAGE, isAiConfigError } from "@/lib/ai/client";
+import { buildSourceContext } from "@/lib/ai/context";
 
 export const maxDuration = 300;
 
@@ -117,7 +118,17 @@ export async function POST(request: Request) {
           });
           await prisma.scrapedSource.update({
             where: { id: source.id },
-            data: { status: "done", summary: reusableSource.summary },
+            data: {
+              status: "done",
+              summary: reusableSource.summary,
+              contextBlob:
+                reusableSource.contextBlob ??
+                buildSourceContext({
+                  kind,
+                  summary: reusableSource.summary,
+                  pages: reusableSource.pages,
+                }),
+            },
           });
 
           const reusedTitle = reusableSource.pages[0]?.title?.trim();
@@ -171,7 +182,11 @@ export async function POST(request: Request) {
 
         await prisma.scrapedSource.update({
           where: { id: source.id },
-          data: { status: "done", summary },
+          data: {
+            status: "done",
+            summary,
+            contextBlob: buildSourceContext({ kind, summary, pages: result.pages }),
+          },
         });
 
         const rootTitle = result.pages[0]?.title?.trim();
