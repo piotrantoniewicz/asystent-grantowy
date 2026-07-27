@@ -36,6 +36,7 @@ organizacjom pozarządowym pisać wnioski o granty. Dokumentacja jest przygotowa
 | `14-ux-bez-tarcia.md` | Poprawki UX U1–U11: mniej tarcia przy scrapowaniu i starcie rozmowy |
 | `15-przeglad-kodu-poprawki.md` | Instrukcja poprawek N1–N11 z przeglądu kodu 2026-07-17 |
 | `16-wdrozenie.md` | Instrukcja Etapu 9: wdrożenie na Vercel pod subdomeną asystent.dobryai.pl |
+| `17-koszty-i-latencja.md` | Instrukcja: obniżenie kosztów AI i czasu odpowiedzi (Etap 1 — szybkie oszczędności, Etap 2 — dokumentacja czytana na żądanie) |
 | `CLAUDE-md-szablon.md` | Szablon pliku CLAUDE.md do głównego folderu projektu |
 
 ## Najważniejsze decyzje (podjęte 2026-07-11)
