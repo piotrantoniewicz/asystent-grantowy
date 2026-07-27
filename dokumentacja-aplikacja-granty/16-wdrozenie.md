@@ -199,8 +199,35 @@ Logs", albo z konsoli przeglądarki) i opisz, co robiłeś krok po kroku — nar
 pomoże to zdiagnozować na miejscu.
 
 **Build pada na `prisma migrate deploy` z błędem `P1002` / advisory lock timeout:**
-brakuje zmiennej `DIRECT_URL` (patrz Krok 3) albo jest ustawiona tylko dla jednego
-środowiska (np. Production, ale nie Preview).
+brakuje zmiennej `DIRECT_URL` (patrz Krok 3), jest ustawiona tylko dla jednego
+środowiska (np. Production, ale nie Preview) **albo zawiera adres z poolerem**
+(host z `-pooler`) — zmienna istnieje, więc na pierwszy rzut oka wygląda dobrze,
+ale przez PgBouncera blokada `pg_advisory_lock` nigdy się nie zakłada. Zdarza się
+po zmianie hasła do bazy, gdy przy aktualizacji obu zmiennych wklei się w oba pola
+ten sam (pooled) string — patrz wpis 2026-07-27 w historii niżej.
+
+Wartości zmiennych w Vercelu są oznaczone jako **Sensitive**: po zapisaniu nie da
+się ich podejrzeć, można je tylko **nadpisać**. Nie próbuj więc sprawdzać, co tam
+jest — po prostu wklej ponownie non-pooled string z Neona (Production i Preview)
+i zrób redeploy. To samo w sobie jest rozstrzygające: jeśli build przechodzi,
+przyczyną był pooler.
+
+Czy blokadę trzyma jednak jakieś zawieszone połączenie, sprawdzisz w Neonie
+(**SQL Editor**, gałąź produkcyjna):
+
+```sql
+SELECT a.pid, a.state, a.state_change, left(a.query, 60) AS zapytanie
+FROM pg_locks l
+JOIN pg_stat_activity a ON a.pid = l.pid
+WHERE l.locktype = 'advisory';
+```
+
+Pusty wynik = nikt blokady nie trzyma, czyli problem leży w adresie (pooler).
+Wiersze w wyniku = zawieszona sesja; zwalnia ją
+`SELECT pg_terminate_backend(l.pid) FROM pg_locks l WHERE l.locktype = 'advisory';`.
+
+**Uwaga:** nieudany build **nie podmienia** produkcji — strona przez cały czas
+serwuje poprzednią, działającą wersję. Nie ma więc presji czasu przy naprawianiu.
 
 ---
 
@@ -213,3 +240,22 @@ brakuje zmiennej `DIRECT_URL` (patrz Krok 3) albo jest ustawiona tylko dla jedne
   czat z asystentem AI podczas debugowania) — zaktualizowano `DATABASE_URL` i
   `DIRECT_URL` nowym hasłem dla Production i Preview, zweryfikowano na żywo (build +
   logowanie bez błędów runtime).
+- **2026-07-27** — pierwsza migracja bazy od czasu rotacji hasła (nowa kolumna
+  `ScrapedSource.contextBlob`) ujawniła, że `DIRECT_URL` w Vercelu zawierał adres
+  **z poolerem**: prawdopodobnie przy aktualizacji obu zmiennych po rotacji hasła
+  wkleiło się w oba pola to samo (pooled) połączenie. Objaw był identyczny jak
+  2026-07-25 — `P1002: Timed out trying to acquire a postgres advisory lock` przy
+  `npx prisma migrate deploy` w Build Command — mimo że zmienna `DIRECT_URL`
+  istniała dla obu środowisk. Trzy kolejne buildy (produkcja, preview, ręczny
+  redeploy) padły tak samo, także wtedy gdy nic innego się nie budowało — czyli nie
+  była to konkurencja dwóch równoległych buildów o tę samą blokadę. Naprawa:
+  nadpisanie `DIRECT_URL` non-pooled stringiem (Production i Preview) i redeploy —
+  build przeszedł w ~69 s. To, że wystarczyła sama podmiana adresu, jest zarazem
+  potwierdzeniem diagnozy (blokady nie trzymała żadna zawieszona sesja —
+  zapytania o `pg_locks` z sekcji „Gdy coś nie działa" ostatecznie nie uruchamiano). Samą migrację uruchomiono wcześniej
+  ręcznie z laptopa (`DATABASE_URL="<non-pooled>" npx prisma migrate deploy`),
+  więc w buildzie nie było już nic do zastosowania. Wniosek na przyszłość: po
+  każdej zmianie hasła do bazy sprawdzić, czy `DATABASE_URL` i `DIRECT_URL` różnią
+  się hostem (`-pooler` tylko w tym pierwszym) — wartości są Sensitive i nie da
+  się ich podejrzeć, więc jedyną metodą weryfikacji jest nadpisanie ich świeżo
+  skopiowanymi stringami z Neona.
