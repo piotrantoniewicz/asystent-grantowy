@@ -5,7 +5,13 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getFreeQuestionsLimit, getSystemPrompt } from "@/lib/settings";
 import { classifyQuestion } from "@/lib/ai/router";
-import { anthropic, MODEL_COMPLEX, MODEL_SIMPLE } from "@/lib/ai/client";
+import {
+  AI_CONFIG_ERROR_MESSAGE,
+  anthropic,
+  isAiConfigError,
+  MODEL_COMPLEX,
+  MODEL_SIMPLE,
+} from "@/lib/ai/client";
 import {
   MESSAGE_MAX_LENGTH,
   RATE_LIMIT_PER_MINUTE,
@@ -246,7 +252,11 @@ export async function POST(request: Request) {
       (refundError) => console.error("Błąd zwrotu pytania:", refundError),
     );
     return NextResponse.json(
-      { error: "Chwilowy problem z serwisem. Pytanie wróciło do Twojej puli." },
+      {
+        error: isAiConfigError(error)
+          ? `${AI_CONFIG_ERROR_MESSAGE} Pytanie wróciło do Twojej puli.`
+          : "Chwilowy problem z serwisem. Pytanie wróciło do Twojej puli.",
+      },
       { status: 500 },
     );
   }
@@ -302,7 +312,11 @@ export async function POST(request: Request) {
       } catch (error) {
         if (!streamedAnything) {
           controller.enqueue(
-            encoder.encode("Chwilowe przeciążenie, spróbuj za minutę."),
+            encoder.encode(
+              isAiConfigError(error)
+                ? `${AI_CONFIG_ERROR_MESSAGE} Pytanie wróciło do Twojej puli.`
+                : "Chwilowe przeciążenie, spróbuj za minutę.",
+            ),
           );
           await refundQuestion({ userId, deviceId, ip, kind: reservation }).catch(
             (refundError) => console.error("Błąd zwrotu pytania:", refundError),
@@ -337,6 +351,12 @@ export async function POST(request: Request) {
   void cleanupOldFreeQuota().catch(() => {});
 
   return new Response(responseBody, {
-    headers: { "Content-Type": "text/plain; charset=utf-8" },
+    headers: {
+      "Content-Type": "text/plain; charset=utf-8",
+      // Bez tego pośrednicy (CDN/proxy) mogą buforować odpowiedź i pokazywać ją
+      // dopiero na końcu — zamiast pisać ją na żywo.
+      "Cache-Control": "no-cache, no-store, no-transform",
+      "X-Accel-Buffering": "no",
+    },
   });
 }

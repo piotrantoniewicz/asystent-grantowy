@@ -1,10 +1,21 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { SCRAPE_FAILED_MESSAGE } from "@/lib/scraper/messages";
+
+// Stała lista wtyczek — nowa tablica przy każdym renderze kasowałaby pamięć
+// podręczną react-markdown.
+const REMARK_PLUGINS = [remarkGfm];
+
+// Zamiana tekstu na sformatowaną treść (markdown) jest kosztowna, a w rozmowie
+// zmienia się tylko ostatnia wiadomość (ta pisana na żywo). `memo` sprawia, że
+// pozostałe wiadomości nie są przeliczane od nowa przy każdej literce.
+const Markdown = memo(function Markdown({ content }: { content: string }) {
+  return <ReactMarkdown remarkPlugins={REMARK_PLUGINS}>{content}</ReactMarkdown>;
+});
 
 type Conversation = {
   id: string;
@@ -154,7 +165,7 @@ function SavedSection({
                 <p className="mb-1 font-semibold text-foreground">{item.name}</p>
                 {item.summary ? (
                   <div className="text-muted [&_a]:underline [&_li]:ml-4 [&_ol]:list-decimal [&_p]:mb-1 [&_p:last-child]:mb-0 [&_ul]:list-disc">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{item.summary}</ReactMarkdown>
+                    <Markdown content={item.summary} />
                   </div>
                 ) : (
                   <p className="break-all text-muted">{item.rootUrl}</p>
@@ -173,9 +184,7 @@ function SavedSection({
           <p className="mb-1 font-semibold text-foreground">{hovered.name}</p>
           {hovered.summary ? (
             <div className="text-muted [&_a]:underline [&_li]:ml-4 [&_ol]:list-decimal [&_p]:mb-1 [&_p:last-child]:mb-0 [&_ul]:list-disc">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {hovered.summary}
-              </ReactMarkdown>
+              <Markdown content={hovered.summary} />
             </div>
           ) : (
             <p className="break-all text-muted">{hovered.rootUrl}</p>
@@ -372,8 +381,17 @@ export default function ChatApp({
   const organizations = savedSources.filter((s) => s.kind === "organization");
   const grants = savedSources.filter((s) => s.kind === "grant");
 
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
+  // Czy użytkownik jest przy dole rozmowy. Jeśli przewinął w górę (żeby coś
+  // przeczytać), nie ściągamy go na siłę na dół przy każdej nowej literce.
+  const stickToBottomRef = useRef(true);
   const autoScrapedForRef = useRef<string | null>(null);
+
+  function scrollToBottom(smooth: boolean) {
+    const el = scrollAreaRef.current;
+    if (!el || !stickToBottomRef.current) return;
+    el.scrollTo({ top: el.scrollHeight, behavior: smooth ? "smooth" : "auto" });
+  }
 
   useEffect(() => {
     fetch("/api/me")
@@ -404,6 +422,7 @@ export default function ChatApp({
 
   useEffect(() => {
     if (!activeId) return;
+    stickToBottomRef.current = true;
     fetch(`/api/conversations/${activeId}`)
       .then((r) => r.json())
       .then((data) => {
@@ -412,9 +431,11 @@ export default function ChatApp({
       });
   }, [activeId]);
 
+  // Przewijamy przy nowej wiadomości/źródle — nie przy każdej literce
+  // dopisywanej do odpowiedzi (tym zajmuje się już strumień w handleSend).
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, sources, scrapeProgress, isThinking]);
+    scrollToBottom(true);
+  }, [messages.length, sources.length, isThinking, scrapeProgress]);
 
   // Tworzy nową rozmowę: POST, dopisanie na początek listy, ustawienie jako
   // aktywnej i wyczyszczenie widoku wiadomości/źródeł. Zwraca id nowej rozmowy.
@@ -615,6 +636,7 @@ export default function ChatApp({
       content: text,
       createdAt: new Date().toISOString(),
     };
+    stickToBottomRef.current = true;
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
     setIsSending(true);
@@ -643,6 +665,27 @@ export default function ChatApp({
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let fullText = "";
+      // Odpowiedź przychodzi w setkach malutkich kawałków. Przerysowywanie
+      // rozmowy po każdym z nich zamula przeglądarkę, więc odświeżamy widok
+      // najwyżej co 80 ms (i zawsze na końcu).
+      const FLUSH_INTERVAL_MS = 80;
+      let lastFlush = 0;
+      let shownText = "";
+
+      function flush(force: boolean) {
+        if (assistantId === null || shownText === fullText) return;
+        const now = Date.now();
+        if (!force && now - lastFlush < FLUSH_INTERVAL_MS) return;
+        lastFlush = now;
+        shownText = fullText;
+        const id = assistantId;
+        const text = fullText;
+        setMessages((prev) =>
+          prev.map((m) => (m.id === id ? { ...m, content: text } : m)),
+        );
+        scrollToBottom(false);
+      }
+
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
@@ -652,6 +695,8 @@ export default function ChatApp({
 
         if (assistantId === null) {
           assistantId = `tmp-assistant-${Date.now()}`;
+          shownText = fullText;
+          lastFlush = Date.now();
           setIsThinking(false);
           setMessages((prev) => [
             ...prev,
@@ -663,19 +708,17 @@ export default function ChatApp({
             },
           ]);
         } else {
-          const id = assistantId;
-          setMessages((prev) =>
-            prev.map((m) => (m.id === id ? { ...m, content: fullText } : m)),
-          );
+          flush(false);
         }
       }
+      flush(true);
     } finally {
       setIsSending(false);
       setIsThinking(false);
     }
   }
 
-  const timeline = buildTimeline(messages, sources);
+  const timeline = useMemo(() => buildTimeline(messages, sources), [messages, sources]);
 
   return (
     <div className="flex h-full bg-background">
@@ -767,7 +810,7 @@ export default function ChatApp({
         )}
       </aside>
 
-      <div className="flex flex-1 flex-col">
+      <div className="flex min-w-0 min-h-0 flex-1 flex-col">
         <button
           onClick={() => setSidebarOpen(true)}
           aria-label="Otwórz menu"
@@ -776,7 +819,15 @@ export default function ChatApp({
           ☰ Menu
         </button>
 
-        <div className="flex-1 overflow-y-auto p-4">
+        <div
+          ref={scrollAreaRef}
+          onScroll={(e) => {
+            const el = e.currentTarget;
+            stickToBottomRef.current =
+              el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+          }}
+          className="min-h-0 flex-1 overflow-y-auto p-4"
+        >
           {sources.length === 0 && (
             <div className="mx-auto mb-6 max-w-sm space-y-4">
               <p className="text-center text-sm text-muted">
@@ -810,9 +861,7 @@ export default function ChatApp({
                     key={item.message.id}
                     className="mr-auto max-w-[80%] rounded bg-primary-soft px-4 py-2 text-sm text-foreground [&_a]:underline [&_li]:ml-4 [&_ol]:list-decimal [&_p]:mb-2 [&_p:last-child]:mb-0 [&_ul]:list-disc"
                   >
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                      {item.message.content}
-                    </ReactMarkdown>
+                    <Markdown content={item.message.content} />
                   </div>
                 )
               ) : (
@@ -872,8 +921,6 @@ export default function ChatApp({
             })}
 
             {isThinking && <ThinkingDots />}
-
-            <div ref={bottomRef} />
           </div>
         </div>
 

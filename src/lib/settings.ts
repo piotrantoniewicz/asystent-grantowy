@@ -3,14 +3,33 @@ import { DEFAULT_SYSTEM_PROMPT } from "@/lib/ai/prompts";
 
 const DEFAULT_FREE_QUESTIONS_LIMIT = 10;
 
+// Ustawienia zmieniają się rzadko (tylko z panelu admina), a odczytywane są przy
+// każdym pytaniu. Trzymamy je przez minutę w pamięci serwera, żeby nie odpytywać
+// bazy za każdym razem. Zmiana w panelu czyści pamięć od razu (patrz niżej).
+const CACHE_TTL_MS = 60_000;
+const settingsCache = new Map<string, { value: string; expiresAt: number }>();
+
 async function getOrSeedSetting(key: string, defaultValue: string) {
+  const cached = settingsCache.get(key);
+  if (cached && cached.expiresAt > Date.now()) return cached.value;
+
   const existing = await prisma.appSetting.findUnique({ where: { key } });
-  if (existing) return existing.value;
+  if (existing) {
+    settingsCache.set(key, {
+      value: existing.value,
+      expiresAt: Date.now() + CACHE_TTL_MS,
+    });
+    return existing.value;
+  }
 
   const setting = await prisma.appSetting.upsert({
     where: { key },
     create: { key, value: defaultValue },
     update: {},
+  });
+  settingsCache.set(key, {
+    value: setting.value,
+    expiresAt: Date.now() + CACHE_TTL_MS,
   });
   return setting.value;
 }
@@ -36,6 +55,7 @@ export async function setSystemPrompt(value: string): Promise<void> {
     create: { key: "system_prompt", value },
     update: { value },
   });
+  settingsCache.delete("system_prompt");
 }
 
 export async function setFreeQuestionsLimit(value: number): Promise<void> {
@@ -44,4 +64,5 @@ export async function setFreeQuestionsLimit(value: number): Promise<void> {
     create: { key: "free_questions_limit", value: String(value) },
     update: { value: String(value) },
   });
+  settingsCache.delete("free_questions_limit");
 }

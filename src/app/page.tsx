@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { auth, signOut } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import ChatApp from "@/components/chat/ChatApp";
@@ -6,7 +7,9 @@ import Brand from "@/components/layout/Brand";
 
 export default async function Home() {
   const session = await auth();
-  if (!session?.user?.id) return null;
+  // Pośrednik (proxy.ts) sprawdza tylko, czy ciasteczko sesji istnieje. Jeśli
+  // wygasło, dopiero tutaj wychodzi, że użytkownik nie jest zalogowany.
+  if (!session?.user?.id) redirect("/logowanie");
 
   const conversations = await prisma.conversation.findMany({
     where: { userId: session.user.id },
@@ -16,7 +19,7 @@ export default async function Home() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-background">
-      <header className="flex items-center justify-between gap-3 border-b border-border bg-surface px-4 py-2.5">
+      <header className="flex flex-shrink-0 items-center justify-between gap-3 border-b border-border bg-surface px-4 py-2.5">
         <h1 className="flex min-w-0 items-center gap-2.5 text-sm font-semibold text-foreground">
           <Brand />
           <span aria-hidden className="text-border">
@@ -46,7 +49,7 @@ export default async function Home() {
           </form>
         </div>
       </header>
-      <div className="flex-1 overflow-hidden">
+      <div className="min-h-0 flex-1 overflow-hidden">
         <ChatApp
           initialConversations={conversations.map((c) => ({
             ...c,

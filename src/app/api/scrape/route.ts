@@ -5,6 +5,7 @@ import { assertSafeUrl, normalizeUrlInput } from "@/lib/scraper/ssrf";
 import { crawlSite, type ScrapeKind } from "@/lib/scraper/crawl";
 import { SCRAPE_FAILED_MESSAGE } from "@/lib/scraper/messages";
 import { summarizeScrape } from "@/lib/scraper/summarize";
+import { AI_CONFIG_ERROR_MESSAGE, isAiConfigError } from "@/lib/ai/client";
 
 export const maxDuration = 300;
 
@@ -212,7 +213,9 @@ export async function POST(request: Request) {
           .catch(() => {});
         send({
           event: "error",
-          error: "Wystąpił błąd podczas pobierania strony. Spróbuj ponownie.",
+          error: isAiConfigError(error)
+            ? AI_CONFIG_ERROR_MESSAGE
+            : "Wystąpił błąd podczas pobierania strony. Spróbuj ponownie.",
         });
       } finally {
         controller.close();

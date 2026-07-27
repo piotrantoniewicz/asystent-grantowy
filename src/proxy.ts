@@ -1,5 +1,4 @@
-import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { NextResponse, type NextRequest } from "next/server";
 
 const PUBLIC_PATHS = [
   "/logowanie",
@@ -10,7 +9,18 @@ const PUBLIC_PATHS = [
 
 const DEVICE_COOKIE = "ag_device";
 
-export default auth((req) => {
+// Nazwy ciasteczka sesji używane przez Auth.js (druga wersja — na https).
+const SESSION_COOKIES = [
+  "authjs.session-token",
+  "__Secure-authjs.session-token",
+];
+
+// UWAGA: tutaj tylko SPRAWDZAMY, CZY JEST ciasteczko sesji — nie weryfikujemy go
+// w bazie. To wyłącznie wygoda (przekierowanie na stronę logowania). Prawdziwe
+// sprawdzenie, kim jest użytkownik, robi każda strona i każde /api osobno
+// (`auth()` w kodzie strony). Wcześniej pośrednik odpytywał bazę przy KAŻDYM
+// żądaniu — także o obrazki i pliki — i to spowalniało całą aplikację.
+export default function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   let response: NextResponse;
@@ -21,8 +31,11 @@ export default auth((req) => {
     const isPublic =
       PUBLIC_PATHS.some((path) => pathname.startsWith(path)) ||
       pathname.startsWith("/api/auth");
+    const hasSessionCookie = SESSION_COOKIES.some((name) =>
+      req.cookies.has(name),
+    );
 
-    if (isPublic || req.auth) {
+    if (isPublic || hasSessionCookie) {
       response = NextResponse.next();
     } else {
       const signInUrl = new URL("/logowanie", req.nextUrl.origin);
@@ -42,7 +55,7 @@ export default auth((req) => {
   }
 
   return response;
-});
+}
 
 export const config = {
   matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
