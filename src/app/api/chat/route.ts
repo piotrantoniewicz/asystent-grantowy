@@ -332,7 +332,9 @@ export async function POST(request: Request) {
                   `(${contextChars} znaków), cache zapis ${cacheWriteTokens} / ` +
                   `odczyt ${cacheReadTokens}, pierwsze zdarzenie po ${firstEventMs} ms, ` +
                   `pierwsze słowo po ${Date.now() - startedAt} ms, ` +
-                  `rozumowanie ${useThinking ? "tak" : "nie"}, model ${model}`,
+                  `rozumowanie ${useThinking ? "tak" : "nie"}${
+                    process.env.AI_THINKING ? ` (AI_THINKING=${process.env.AI_THINKING})` : ""
+                  }, model ${model}`,
               );
             }
             streamedAnything = true;

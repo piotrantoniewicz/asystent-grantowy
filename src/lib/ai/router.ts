@@ -38,8 +38,18 @@ const WRITING_HINTS = [
  *
  * Świadomie BEZ osobnego wywołania AI (klasyfikator Haiku dokłada 0,3–0,6 s
  * czekania i własny koszt) — to ma być czysta heurystyka tekstowa.
+ *
+ * Zmienna `AI_THINKING` pozwala wymusić odpowiedź niezależnie od treści pytania:
+ * `off` — nigdy nie rozumuj, `on` — zawsze rozumuj, brak lub `auto` — heurystyka.
+ * Służy do porównania jakości odpowiedzi „z rozumowaniem" i „bez" na TYM SAMYM
+ * pytaniu (inaczej pytanie wytwórcze zawsze trafiałoby w heurystykę). Na produkcji
+ * zostawiamy ją nieustawioną.
  */
 export function needsDeepThinking(messageText: string): boolean {
+  const override = process.env.AI_THINKING?.trim().toLowerCase();
+  if (override === "off") return false;
+  if (override === "on") return true;
+
   const text = messageText.toLowerCase();
   return (
     messageText.length > 300 || WRITING_HINTS.some((hint) => text.includes(hint))
