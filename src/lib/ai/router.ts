@@ -4,6 +4,48 @@ import { CLASSIFIER_INSTRUCTIONS } from "./prompts";
 
 export type ModelClass = "SIMPLE" | "COMPLEX";
 
+/**
+ * Słowa typowe dla pytań „wytwórczych" — takich, w których model ma coś napisać,
+ * rozplanować albo przeredagować. Tam tryb rozumowania realnie poprawia tekst.
+ */
+const WRITING_HINTS = [
+  "napisz",
+  "przygotuj",
+  "sformułuj",
+  "uzasadnij",
+  "uzasadnienie",
+  "opisz",
+  "rozpisz",
+  "harmonogram",
+  "budżet",
+  "wniosek",
+  "streść",
+  "przeredaguj",
+  "popraw",
+  "rozwiń",
+  "zaproponuj",
+  "plan",
+];
+
+/**
+ * Czy dla tego pytania włączyć tryb rozumowania (`thinking`).
+ *
+ * Rozumowanie kosztuje jak tokeny wyjściowe ($15/MTok na Sonnecie) i odpowiada
+ * za większość ciszy przed pierwszym słowem odpowiedzi — do stream trafia tylko
+ * `text_delta`, więc użytkownik widzi wtedy pustkę. Przy pytaniach faktograficznych
+ * („do kiedy nabór?") nic nie wnosi, więc włączamy je tylko dla pytań wytwórczych
+ * i dla pytań długich (te niosą zwykle materiał do przetworzenia).
+ *
+ * Świadomie BEZ osobnego wywołania AI (klasyfikator Haiku dokłada 0,3–0,6 s
+ * czekania i własny koszt) — to ma być czysta heurystyka tekstowa.
+ */
+export function needsDeepThinking(messageText: string): boolean {
+  const text = messageText.toLowerCase();
+  return (
+    messageText.length > 300 || WRITING_HINTS.some((hint) => text.includes(hint))
+  );
+}
+
 const classificationFormat = jsonSchemaOutputFormat({
   type: "object",
   properties: {

@@ -6,6 +6,9 @@ const PRICING_USD_PER_MTOK: Record<string, { input: number; output: number }> = 
   "claude-sonnet-5": { input: 3, output: 15 },
 };
 
+// 1.25 odpowiada domyślnemu cache'owi 5-minutowemu ustawionemu w
+// `src/app/api/chat/route.ts`. Gdyby tam wrócił `ttl: "1h"`, tutaj musi być 2.0 —
+// inaczej panel zaniża koszt zapisów do cache o ~60%.
 const CACHE_WRITE_MULTIPLIER = 1.25;
 const CACHE_READ_MULTIPLIER = 0.1;
 

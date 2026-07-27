@@ -5,6 +5,7 @@ import { memo, useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { SCRAPE_FAILED_MESSAGE } from "@/lib/scraper/messages";
+import { STATUS_MARK } from "@/lib/chat-stream";
 
 // Stała lista wtyczek — nowa tablica przy każdym renderze kasowałaby pamięć
 // podręczną react-markdown.
@@ -333,12 +334,15 @@ function SourceForms({
   );
 }
 
-function ThinkingDots() {
+function ThinkingDots({ label }: { label?: string }) {
   return (
-    <div className="mr-auto flex max-w-[80%] items-center gap-1 rounded bg-primary-soft px-4 py-3">
-      <span className="h-2 w-2 animate-bounce rounded-full bg-primary [animation-delay:-0.3s]" />
-      <span className="h-2 w-2 animate-bounce rounded-full bg-primary [animation-delay:-0.15s]" />
-      <span className="h-2 w-2 animate-bounce rounded-full bg-primary" />
+    <div className="mr-auto flex max-w-[80%] items-center gap-2 rounded bg-primary-soft px-4 py-3">
+      <span className="flex items-center gap-1">
+        <span className="h-2 w-2 animate-bounce rounded-full bg-primary [animation-delay:-0.3s]" />
+        <span className="h-2 w-2 animate-bounce rounded-full bg-primary [animation-delay:-0.15s]" />
+        <span className="h-2 w-2 animate-bounce rounded-full bg-primary" />
+      </span>
+      {label && <span className="text-sm text-muted">{label}</span>}
     </div>
   );
 }
@@ -357,6 +361,9 @@ export default function ChatApp({
   const [input, setInput] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [isThinking, setIsThinking] = useState(false);
+  // Model zaczął rozumować — pokazujemy to pod dymkiem, żeby kilka sekund ciszy
+  // nie wyglądało jak zawieszona aplikacja.
+  const [isAnalysing, setIsAnalysing] = useState(false);
   const [limitError, setLimitError] = useState<string | null>(null);
   const [limitErrorBuyUrl, setLimitErrorBuyUrl] = useState<string | null>(null);
   const [remaining, setRemaining] = useState<{
@@ -641,6 +648,7 @@ export default function ChatApp({
     setInput("");
     setIsSending(true);
     setIsThinking(true);
+    setIsAnalysing(false);
 
     try {
       const res = await fetch("/api/chat", {
@@ -686,10 +694,30 @@ export default function ChatApp({
         scrollToBottom(false);
       }
 
+      // Serwer może wpleść w strumień krótki znacznik statusu (patrz
+      // `src/lib/chat-stream.ts`). Wycinamy go z tekstu odpowiedzi; gdyby paczka
+      // z sieci urwała się w środku znacznika, resztę trzymamy w `pending`
+      // do następnego odczytu.
+      let pending = "";
+
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        const chunk = decoder.decode(value, { stream: true });
+        pending += decoder.decode(value, { stream: true });
+
+        while (true) {
+          const start = pending.indexOf(STATUS_MARK);
+          if (start === -1) break;
+          const end = pending.indexOf(STATUS_MARK, start + 1);
+          if (end === -1) break; // znacznik jeszcze niekompletny — czekamy
+          if (pending.slice(start + 1, end) === "thinking") setIsAnalysing(true);
+          pending = pending.slice(0, start) + pending.slice(end + 1);
+        }
+
+        const holdFrom = pending.indexOf(STATUS_MARK);
+        const chunk = holdFrom === -1 ? pending : pending.slice(0, holdFrom);
+        pending = holdFrom === -1 ? "" : pending.slice(holdFrom);
+
         if (!chunk) continue;
         fullText += chunk;
 
@@ -715,6 +743,7 @@ export default function ChatApp({
     } finally {
       setIsSending(false);
       setIsThinking(false);
+      setIsAnalysing(false);
     }
   }
 
@@ -920,7 +949,9 @@ export default function ChatApp({
               );
             })}
 
-            {isThinking && <ThinkingDots />}
+            {isThinking && (
+              <ThinkingDots label={isAnalysing ? "Analizuję dokumentację…" : undefined} />
+            )}
           </div>
         </div>
 
