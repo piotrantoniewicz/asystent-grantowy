@@ -57,10 +57,31 @@ odpowiedź).
 | Klasa | Model | Parametry |
 |---|---|---|
 | SIMPLE | `claude-haiku-4-5` | `max_tokens: 2048` |
-| COMPLEX | `claude-sonnet-5` | `max_tokens: 64000`, streaming, `thinking: {type: "adaptive"}` |
+| COMPLEX | `claude-sonnet-5` | `max_tokens: 32000` (pytanie wytwórcze) albo `4096` (faktograficzne), streaming, **bez `thinking`** |
 
 Oba wywołania dostają **ten sam pełny kontekst**: prompt systemowy + zeskrapowane
 treści + historia rozmowy.
+
+### Rozumowanie (`thinking`) — wyłączone od 2026-07-28
+
+Pierwotnie każde pytanie klasy COMPLEX szło z `thinking: {type: "adaptive"}`.
+Decyzją właściciela (po porównaniu odpowiedzi na to samo pytanie o uzasadnienie
+projektu, z rozumowaniem i bez) rozumowanie jest **wyłączone**: różnicy w jakości
+tekstu nie było, a kosztowało ~6 sekund czekania i tokeny wyjściowe po $15/MTok.
+W streamie widać tylko `text_delta`, więc czas rozumowania użytkownik odbierał
+jako zawieszoną aplikację.
+
+Sterowanie w `src/lib/ai/router.ts`:
+
+- stała `THINKING_ENABLED` (dziś `false`) — powrót to zmiana jednej linijki,
+- `looksLikeWritingTask()` — heurystyka tekstowa bez dodatkowego wywołania AI
+  (klasyfikator Haiku dokładałby 0,3–0,6 s i własny koszt); rozpoznaje pytania
+  wytwórcze i steruje **wyłącznie** limitem `max_tokens`, nie rozumowaniem —
+  inaczej wyłączenie rozumowania ucinałoby długie wnioski w pół zdania,
+- zmienna środowiskowa `AI_THINKING` (`on` / `off`) — wymusza tryb niezależnie
+  od treści pytania, do porównywania jakości odpowiedzi. Na produkcji nieustawiona.
+
+Szczegóły i pomiary: `17-koszty-i-latencja.md`.
 
 ## Prompt caching — obowiązkowy
 
