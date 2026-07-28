@@ -1,14 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { needsDeepThinking } from "./router";
+import { looksLikeWritingTask, needsDeepThinking } from "./router";
 
-describe("needsDeepThinking", () => {
-  // Testy sprawdzają samą heurystykę, więc wymuszamy tryb `auto` — inaczej
-  // ustawione lokalnie `AI_THINKING=off` (do porównania jakości odpowiedzi)
-  // wywracałoby testy.
-  beforeEach(() => vi.stubEnv("AI_THINKING", "auto"));
-  afterEach(() => vi.unstubAllEnvs());
-
-  it("nie włącza rozumowania dla pytań faktograficznych", () => {
+describe("looksLikeWritingTask", () => {
+  it("rozpoznaje pytania faktograficzne", () => {
     const questions = [
       "Do kiedy trwa nabór wniosków?",
       "Jaka jest maksymalna kwota dofinansowania?",
@@ -18,11 +12,11 @@ describe("needsDeepThinking", () => {
       "Gdzie wysyła się dokumenty?",
     ];
     for (const question of questions) {
-      expect(needsDeepThinking(question), question).toBe(false);
+      expect(looksLikeWritingTask(question), question).toBe(false);
     }
   });
 
-  it("włącza rozumowanie dla pytań wytwórczych", () => {
+  it("rozpoznaje pytania wytwórcze", () => {
     const questions = [
       "Napisz uzasadnienie potrzeby realizacji projektu, ok. 2000 znaków.",
       "Przygotuj harmonogram działań na 12 miesięcy.",
@@ -32,35 +26,53 @@ describe("needsDeepThinking", () => {
       "Sformułuj opis grupy docelowej.",
     ];
     for (const question of questions) {
-      expect(needsDeepThinking(question), question).toBe(true);
+      expect(looksLikeWritingTask(question), question).toBe(true);
     }
   });
 
   it("nie zależy od wielkości liter", () => {
-    expect(needsDeepThinking("NAPISZ WSTĘP DO PROJEKTU")).toBe(true);
+    expect(looksLikeWritingTask("NAPISZ WSTĘP DO PROJEKTU")).toBe(true);
   });
 
-  it("włącza rozumowanie dla długich wiadomości (ponad 300 znaków)", () => {
-    expect(needsDeepThinking("a".repeat(301))).toBe(true);
-    expect(needsDeepThinking("a".repeat(300))).toBe(false);
+  it("traktuje wiadomości dłuższe niż 300 znaków jako wytwórcze", () => {
+    expect(looksLikeWritingTask("a".repeat(301))).toBe(true);
+    expect(looksLikeWritingTask("a".repeat(300))).toBe(false);
+  });
+});
+
+describe("needsDeepThinking", () => {
+  // Wymuszamy tryb normalny — inaczej ustawione lokalnie `AI_THINKING`
+  // (do porównywania jakości odpowiedzi) wywracałoby testy.
+  beforeEach(() => vi.stubEnv("AI_THINKING", "auto"));
+  afterEach(() => vi.unstubAllEnvs());
+
+  // Decyzja właściciela z 2026-07-28: rozumowanie wyłączone na stałe, bo nie
+  // poprawiało jakości, a kosztowało czas i tokeny wyjściowe. Powrót = zmiana
+  // stałej THINKING_ENABLED w `router.ts` na `true`.
+  it("jest wyłączone niezależnie od treści pytania", () => {
+    const questions = [
+      "Do kiedy trwa nabór wniosków?",
+      "Napisz uzasadnienie potrzeby realizacji projektu, ok. 2000 znaków.",
+      "Rozpisz budżet projektu na kategorie kosztów.",
+      "a".repeat(1000),
+    ];
+    for (const question of questions) {
+      expect(needsDeepThinking(question), question.slice(0, 40)).toBe(false);
+    }
   });
 
-  it("AI_THINKING=off wyłącza rozumowanie nawet dla pytań wytwórczych", () => {
-    vi.stubEnv("AI_THINKING", "off");
-    expect(needsDeepThinking("Napisz uzasadnienie potrzeby realizacji projektu.")).toBe(
-      false,
-    );
-    expect(needsDeepThinking("a".repeat(1000))).toBe(false);
-  });
-
-  it("AI_THINKING=on włącza rozumowanie nawet dla pytań faktograficznych", () => {
+  it("AI_THINKING=on pozwala włączyć rozumowanie do porównań", () => {
     vi.stubEnv("AI_THINKING", "on");
     expect(needsDeepThinking("Do kiedy trwa nabór wniosków?")).toBe(true);
   });
 
-  it("nieznana wartość AI_THINKING nie psuje heurystyki", () => {
+  it("AI_THINKING=off wyłącza rozumowanie", () => {
+    vi.stubEnv("AI_THINKING", "off");
+    expect(needsDeepThinking("Napisz uzasadnienie projektu.")).toBe(false);
+  });
+
+  it("nieznana wartość AI_THINKING nie zmienia zachowania", () => {
     vi.stubEnv("AI_THINKING", "byle co");
-    expect(needsDeepThinking("Do kiedy trwa nabór wniosków?")).toBe(false);
-    expect(needsDeepThinking("Napisz uzasadnienie.")).toBe(true);
+    expect(needsDeepThinking("Napisz uzasadnienie projektu.")).toBe(false);
   });
 });

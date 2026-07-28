@@ -4,7 +4,11 @@ import Anthropic from "@anthropic-ai/sdk";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getFreeQuestionsLimit, getSystemPrompt } from "@/lib/settings";
-import { classifyQuestion, needsDeepThinking } from "@/lib/ai/router";
+import {
+  classifyQuestion,
+  looksLikeWritingTask,
+  needsDeepThinking,
+} from "@/lib/ai/router";
 import {
   AI_CONFIG_ERROR_MESSAGE,
   anthropic,
@@ -222,16 +226,17 @@ export async function POST(request: Request) {
 
     model = modelClass === "SIMPLE" ? MODEL_SIMPLE : MODEL_COMPLEX;
 
-    // Rozumowanie tylko tam, gdzie pomaga (patrz `needsDeepThinking`). Przy
-    // pytaniu faktograficznym o dokumentację nie ma po co palić tokenów wyjściowych
-    // ani kazać użytkownikowi patrzeć w pustkę przez kilka sekund.
+    // Rozumowanie tylko tam, gdzie pomaga (patrz `needsDeepThinking` — dziś
+    // wyłączone na stałe decyzją właściciela z 2026-07-28).
     useThinking = modelClass === "COMPLEX" && needsDeepThinking(messageText);
 
-    // 32k tokenów ≈ 24 tys. słów — z zapasem starcza na najdłuższy wniosek,
-    // a razem z kontekstem mieści się w oknie 200k (patrz komentarz przy MAX_HISTORY_CHARS).
-    // Bez rozumowania odpowiedzi są krótkie i faktograficzne — 4096 wystarcza.
+    // Limit długości odpowiedzi zależy od charakteru pytania, a NIE od rozumowania —
+    // inaczej wyłączenie rozumowania ucinałoby długie wnioski w pół zdania.
+    // 32k tokenów ≈ 24 tys. słów — z zapasem starcza na najdłuższy wniosek, a razem
+    // z kontekstem mieści się w oknie 200k (patrz komentarz przy MAX_HISTORY_CHARS).
+    // Pytanie faktograficzne („do kiedy nabór?") tyle nie potrzebuje.
     const maxTokens =
-      modelClass === "SIMPLE" ? 2048 : useThinking ? 32_000 : 4096;
+      modelClass === "SIMPLE" ? 2048 : looksLikeWritingTask(messageText) ? 32_000 : 4096;
 
     const systemBlocks: Anthropic.TextBlockParam[] = hasScrapedDocumentation
       ? [
