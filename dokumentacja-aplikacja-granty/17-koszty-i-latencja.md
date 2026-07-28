@@ -182,7 +182,7 @@ widzi pustkę i uznaje, że aplikacja wisi.
 
 W `chat/route.ts`, w pętli po zdarzeniach streamu, obsłuż `content_block_delta`
 z `delta.type === "thinking_delta"`: przy **pierwszym** takim zdarzeniu wyślij do
-przeglądarki znacznik statusu (np. linię ` STATUS:thinking\n` albo — czytelniej
+przeglądarki znacznik statusu (np. linię `STATUS:thinking\n` poprzedzoną znakiem sterującym albo — czytelniej
 — przejdź na NDJSON jak w `/api/scrape`). W `ChatApp.tsx` pokaż wtedy pod dymkiem
 delikatne „Analizuję dokumentację…", znikające przy pierwszym `text_delta`.
 
