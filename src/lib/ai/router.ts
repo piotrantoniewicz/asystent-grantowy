@@ -78,6 +78,131 @@ export function needsDeepThinking(messageText: string): boolean {
   return looksLikeWritingTask(messageText);
 }
 
+/**
+ * Czasowniki „napisz mi to". Osobna, WĘŻSZA lista niż `WRITING_HINTS`, bo tamta
+ * zawiera też rzeczowniki („wniosek", „plan", „budżet"), które padają w zwykłych
+ * pytaniach o fakty („kto może składać wniosek?").
+ */
+const WRITING_VERB_HINTS = [
+  "napisz",
+  "przygotuj",
+  "sformułuj",
+  "uzasadnij",
+  "opisz",
+  "rozpisz",
+  "streść",
+  "przeredaguj",
+  "popraw",
+  "rozwiń",
+  "zaproponuj",
+];
+
+/**
+ * Słowa typowe dla pytań o ocenę, analizę i doradztwo — to jest sedno produktu
+ * i zostaje na Sonnecie, nawet jeśli pytanie jest krótkie.
+ */
+const ANALYSIS_HINTS = [
+  "kwalifikowal",
+  "czy spełnia",
+  "czy spełniamy",
+  "czy możemy",
+  "czy nasza",
+  "czy nasz ",
+  "czy mamy szans",
+  "oceń",
+  "ocena",
+  "przeanalizuj",
+  "analiz",
+  "szanse",
+  "doradź",
+  "poradź",
+  "rekomend",
+  "porównaj",
+  "strategi",
+  "ryzyk",
+  "argument",
+  "pasuje",
+  "nadajemy się",
+  "nadaje się",
+];
+
+/**
+ * Zwroty, po których poznać pytanie „wyszukujące": odpowiedź to fakt do
+ * znalezienia w dokumentacji (termin, kwota, lista załączników), nie ocena.
+ */
+const LOOKUP_HINTS = [
+  "do kiedy",
+  "od kiedy",
+  "kiedy",
+  "termin",
+  "deadline",
+  "ile ",
+  "jaka kwota",
+  "jaką kwotę",
+  "maksymaln",
+  "minimaln",
+  "jakie załączniki",
+  "jakie dokumenty",
+  "jakie są",
+  "jaki jest",
+  "jaka jest",
+  "kto może",
+  "gdzie",
+  "wkład własny",
+  "co trzeba",
+  "czy trzeba",
+  "czy wymagan",
+  "czy jest wymagany",
+  "adres",
+  "kontakt",
+];
+
+/** Dłuższe pytanie to prawie zawsze opis sytuacji z prośbą o ocenę, nie wyszukanie faktu. */
+const LOOKUP_MAX_CHARS = 200;
+
+/**
+ * Czy pytanie jest „wyszukujące" — model ma znaleźć fakt w dokumentacji konkursu
+ * (termin naboru, kwota, lista załączników, kto może składać wniosek).
+ *
+ * Takie pytania mogą iść na Haiku (3× taniej). Analiza kwalifikowalności
+ * i pisanie treści wniosku zostają na Sonnecie — patrz zasada 5 w `CLAUDE.md`.
+ *
+ * Świadomie BEZ osobnego wywołania AI: klasyfikator (`classifyQuestion`) dokłada
+ * 0,3–0,6 s czekania i własny koszt do KAŻDEGO pytania, także tych, które i tak
+ * pójdą na Sonneta — przy celu „pierwsze słowo poniżej 3 s" to strata.
+ *
+ * Heurystyka jest celowo zachowawcza: przy jakiejkolwiek wątpliwości zwraca
+ * `false`, czyli pytanie idzie na Sonneta. Fałszywy Sonnet kosztuje kilka groszy,
+ * fałszywe Haiku kosztuje jakość odpowiedzi.
+ */
+export function looksLikeLookupQuestion(messageText: string): boolean {
+  if (messageText.length > LOOKUP_MAX_CHARS) return false;
+  const text = messageText.toLowerCase();
+  if (WRITING_VERB_HINTS.some((hint) => text.includes(hint))) return false;
+  if (ANALYSIS_HINTS.some((hint) => text.includes(hint))) return false;
+  return LOOKUP_HINTS.some((hint) => text.includes(hint));
+}
+
+/**
+ * Wybór modelu dla rozmowy z wczytaną dokumentacją konkursu.
+ *
+ * `onDemandDocs` = tryb `ai_docs_mode: "ondemand"` (w prompcie jest sam spis
+ * stron, ~6 tys. tokenów). Tylko w nim wolno mieszać modele: cache promptu jest
+ * osobny dla każdego z nich, więc w trybie `full` (cała dokumentacja w prompcie,
+ * 150+ tys. tokenów) przełączenie modelu w środku rozmowy oznaczałoby drugi
+ * kosztowny zapis do cache — stratę zamiast oszczędności.
+ */
+export function pickDocsModelClass({
+  messageText,
+  onDemandDocs,
+}: {
+  messageText: string;
+  onDemandDocs: boolean;
+}): ModelClass {
+  if (!onDemandDocs) return "COMPLEX";
+  return looksLikeLookupQuestion(messageText) ? "SIMPLE" : "COMPLEX";
+}
+
 const classificationFormat = jsonSchemaOutputFormat({
   type: "object",
   properties: {

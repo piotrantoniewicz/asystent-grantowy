@@ -1,5 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { looksLikeWritingTask, needsDeepThinking } from "./router";
+import {
+  looksLikeLookupQuestion,
+  looksLikeWritingTask,
+  needsDeepThinking,
+  pickDocsModelClass,
+} from "./router";
 
 describe("looksLikeWritingTask", () => {
   it("rozpoznaje pytania faktograficzne", () => {
@@ -37,6 +42,102 @@ describe("looksLikeWritingTask", () => {
   it("traktuje wiadomości dłuższe niż 300 znaków jako wytwórcze", () => {
     expect(looksLikeWritingTask("a".repeat(301))).toBe(true);
     expect(looksLikeWritingTask("a".repeat(300))).toBe(false);
+  });
+});
+
+describe("looksLikeLookupQuestion", () => {
+  it("rozpoznaje pytania wyszukujące (mogą iść na Haiku)", () => {
+    const questions = [
+      "Do kiedy trwa nabór?",
+      "Jakie załączniki są wymagane?",
+      "Jaka jest maksymalna kwota dofinansowania?",
+      "Kto może składać wniosek?",
+      "Czy wymagany jest wkład własny?",
+      "Gdzie wysyła się dokumenty?",
+      "Ile wynosi minimalny wkład własny?",
+      "Jaki jest termin rozliczenia dotacji?",
+    ];
+    for (const question of questions) {
+      expect(looksLikeLookupQuestion(question), question).toBe(true);
+    }
+  });
+
+  it("zostawia na Sonnecie pytania o ocenę i kwalifikowalność", () => {
+    const questions = [
+      "Czy nasza organizacja spełnia kryteria kwalifikowalności?",
+      "Oceń, czy mamy szanse w tym konkursie.",
+      "Przeanalizuj, czy nasz projekt pasuje do celów konkursu.",
+      "Czy możemy startować, jeśli działamy od roku?",
+      "Doradź, na który z tych dwóch konkursów aplikować.",
+      "Jakie są dla nas ryzyka w tym naborze?",
+    ];
+    for (const question of questions) {
+      expect(looksLikeLookupQuestion(question), question).toBe(false);
+    }
+  });
+
+  it("zostawia na Sonnecie pytania o pisanie treści wniosku", () => {
+    const questions = [
+      "Napisz uzasadnienie potrzeby realizacji projektu.",
+      "Przygotuj harmonogram działań na 12 miesięcy.",
+      "Rozpisz budżet projektu na kategorie kosztów.",
+      "Popraw ten fragment, żeby brzmiał konkretniej.",
+    ];
+    for (const question of questions) {
+      expect(looksLikeLookupQuestion(question), question).toBe(false);
+    }
+  });
+
+  it("nie zależy od wielkości liter", () => {
+    expect(looksLikeLookupQuestion("DO KIEDY TRWA NABÓR?")).toBe(true);
+  });
+
+  it("długie pytanie nigdy nie jest wyszukujące", () => {
+    // Opis sytuacji z prośbą o ocenę — nawet jeśli pada w nim „do kiedy".
+    expect(looksLikeLookupQuestion(`Do kiedy? ${"a".repeat(201)}`)).toBe(false);
+  });
+
+  it("przy braku dopasowania domyślnie NIE jest wyszukujące", () => {
+    expect(looksLikeLookupQuestion("Hmm, a co dalej?")).toBe(false);
+  });
+});
+
+describe("pickDocsModelClass", () => {
+  it("w trybie na żądanie kieruje pytania wyszukujące na Haiku", () => {
+    expect(
+      pickDocsModelClass({ messageText: "Do kiedy trwa nabór?", onDemandDocs: true }),
+    ).toBe("SIMPLE");
+  });
+
+  it("w trybie na żądanie zostawia analizę i pisanie na Sonnecie", () => {
+    expect(
+      pickDocsModelClass({
+        messageText: "Czy nasza organizacja spełnia kryteria kwalifikowalności?",
+        onDemandDocs: true,
+      }),
+    ).toBe("COMPLEX");
+    expect(
+      pickDocsModelClass({
+        messageText: "Napisz uzasadnienie potrzeby realizacji projektu.",
+        onDemandDocs: true,
+      }),
+    ).toBe("COMPLEX");
+  });
+
+  // Tryb `full` = cała dokumentacja w prompcie; mieszanie modeli mnożyłoby
+  // kosztowne zapisy do cache (osobny cache dla każdego modelu).
+  it("w trybie full zawsze Sonnet", () => {
+    const questions = [
+      "Do kiedy trwa nabór?",
+      "Jakie załączniki są wymagane?",
+      "Napisz uzasadnienie potrzeby realizacji projektu.",
+    ];
+    for (const question of questions) {
+      expect(
+        pickDocsModelClass({ messageText: question, onDemandDocs: false }),
+        question,
+      ).toBe("COMPLEX");
+    }
   });
 });
 

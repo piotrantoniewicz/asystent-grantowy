@@ -56,6 +56,11 @@ organizacjom pozarządowym pisać wnioski o granty. Dokumentacja jest przygotowa
   darmowych pytań na urządzenie + dzienny limit na adres IP (tabela `FreeQuota`).
 - **Router AI:** rozmowa z wczytaną dokumentacją konkursu → zawsze Sonnet
   (jeden cache zamiast dwóch); klasyfikator tylko w rozmowach bez dokumentów.
+  **Zmienione 2026-07-29** (Etap B z `18-zrownoleglenie-i-haiku.md`): w trybie
+  `ai_docs_mode = "ondemand"` pytania **wyszukujące** (termin, kwota, załączniki,
+  kto może składać) idą na Haiku; **analiza kwalifikowalności i pisanie treści
+  wniosku zostają na Sonnecie**. W trybie `full` bez zmian — zawsze Sonnet, bo
+  przy 150+ tys. tokenów w prompcie mieszanie modeli mnoży zapisy do cache.
 - **Scraping:** synchronicznie ze strumieniowanym postępem (zgodność z hostingiem
   serverless); `unpdf` zamiast `pdf-parse`; budżet treści ~100 tys. tokenów.
 - **Limity ochronne czatu:** wiadomość maks. 50 tys. znaków; 4 pytania/minutę;

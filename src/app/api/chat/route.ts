@@ -8,6 +8,7 @@ import {
   classifyQuestion,
   looksLikeWritingTask,
   needsDeepThinking,
+  pickDocsModelClass,
 } from "@/lib/ai/router";
 import {
   AI_CONFIG_ERROR_MESSAGE,
@@ -304,7 +305,7 @@ export async function POST(request: Request) {
     }
 
     const modelClass = hasScrapedDocumentation
-      ? ("COMPLEX" as const)
+      ? pickDocsModelClass({ messageText, onDemandDocs: useOnDemandDocs })
       : await classifyQuestion(
           truncateForClassifier(messageText),
           conversation.messages.map((m) => ({

@@ -35,12 +35,16 @@ Minimum dodatkowych bibliotek.
 4. Uprawnienia admina wyłącznie z `ADMIN_EMAILS` (w bazie nie ma pola `isAdmin`);
    nie-admini dostają na `/admin` i `/api/admin/*` — 404.
 5. Modele AI: router wg `dokumentacja-aplikacja-granty/05-router-ai.md`
-   (`claude-haiku-4-5` / `claude-sonnet-5`); rozmowa z wczytaną dokumentacją →
-   zawsze Sonnet; prompt caching obowiązkowy. **Powód „zawsze Sonnet" to jeden
-   cache zamiast dwóch** (cache promptu jest osobny dla każdego modelu) —
-   warunek do zmiany tej zasady i przeniesienia pytań wyszukujących na Haiku
-   opisuje `18-zrownoleglenie-i-haiku.md`; do czasu jego wykonania zasada
-   obowiązuje bez wyjątków.
+   (`claude-haiku-4-5` / `claude-sonnet-5`); prompt caching obowiązkowy.
+   W rozmowie z wczytaną dokumentacją podział jest taki: **wyszukiwanie faktu
+   w dokumentach → Haiku** (termin naboru, kwota, załączniki, kto może składać),
+   **analiza kwalifikowalności i pisanie treści wniosku → Sonnet** — to sedno
+   produktu, tam nie oszczędzamy. Decyduje heurystyka tekstowa
+   `pickDocsModelClass` w `src/lib/ai/router.ts`, bez dodatkowego wywołania AI;
+   przy wątpliwości wybiera Sonneta. **Mieszać modele wolno wyłącznie przy małym
+   prompcie**, czyli w trybie `ai_docs_mode = "ondemand"` (~6 tys. tokenów) —
+   w trybie `full` zawsze Sonnet, bo cache promptu jest osobny dla każdego
+   modelu i przy 150+ tys. tokenów drugi zapis kasuje całą oszczędność.
 5a. Dokumentacja konkursu trafia do modelu wg ustawienia `AppSetting.ai_docs_mode`:
    `ondemand` (domyślne) — w prompcie jest sam spis stron, treść model dobiera
    narzędziami z `src/lib/ai/tools.ts`; `full` — cała dokumentacja w prompcie
