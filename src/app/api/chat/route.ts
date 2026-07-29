@@ -43,6 +43,28 @@ import {
 
 export const maxDuration = 300;
 
+function loadConversation(conversationId: string) {
+  return prisma.conversation.findUnique({
+    where: { id: conversationId },
+    include: {
+      messages: { orderBy: { createdAt: "asc" } },
+      // Świadomie BEZ `pages` — treść stron jest już złożona i przycięta
+      // w `contextBlob`. Wczytywanie wszystkich stron (bywa kilka MB, a i tak
+      // używamy najwyżej 350 tys. znaków) kosztowało sekundy przy każdym pytaniu.
+      scrapedSources: {
+        where: { status: "done" },
+        select: {
+          id: true,
+          kind: true,
+          summary: true,
+          contextBlob: true,
+          indexBlob: true,
+        },
+      },
+    },
+  });
+}
+
 export async function POST(request: Request) {
   const session = await auth();
   if (!session?.user?.id) {
@@ -77,38 +99,48 @@ export async function POST(request: Request) {
   // odpowiedzi zjada baza, ile składanie kontekstu, a ile samo AI.
   const startedAt = Date.now();
 
-  const conversation = await prisma.conversation.findUnique({
-    where: { id: conversationId },
-    include: {
-      messages: { orderBy: { createdAt: "asc" } },
-      // Świadomie BEZ `pages` — treść stron jest już złożona i przycięta
-      // w `contextBlob`. Wczytywanie wszystkich stron (bywa kilka MB, a i tak
-      // używamy najwyżej 350 tys. znaków) kosztowało sekundy przy każdym pytaniu.
-      scrapedSources: {
-        where: { status: "done" },
-        select: {
-          id: true,
-          kind: true,
-          summary: true,
-          contextBlob: true,
-          indexBlob: true,
-        },
-      },
-    },
-  });
-  if (!conversation || conversation.userId !== userId) {
-    return NextResponse.json({ error: "Nie znaleziono rozmowy." }, { status: 404 });
+  // Wszystkie te odczyty są od siebie niezależne, a każdy to osobna podróż do
+  // bazy (na produkcji kilkadziesiąt–kilkaset ms). Puszczamy je równolegle.
+  // UWAGA: to są WYŁĄCZNIE odczyty. Rezerwacja pytania (`reserveQuestion`)
+  // musi zostać niżej — po sprawdzeniu właściciela rozmowy i przed wywołaniem
+  // AI (zasada 2 z CLAUDE.md). Nie wolno jej tu wciągać.
+  const oneMinuteAgo = new Date(Date.now() - 60_000);
+  let conversation: Awaited<ReturnType<typeof loadConversation>>;
+  let recentUserMessages: number;
+  let freeQuestionsLimit: number;
+  let systemPrompt: string;
+  let docsMode: Awaited<ReturnType<typeof getAiDocsMode>>;
+  let deviceId: string | null;
+  try {
+    [conversation, recentUserMessages, freeQuestionsLimit, systemPrompt, docsMode, deviceId] =
+      await Promise.all([
+        loadConversation(conversationId),
+        prisma.message.count({
+          where: {
+            role: "user",
+            createdAt: { gte: oneMinuteAgo },
+            conversation: { userId },
+          },
+        }),
+        getFreeQuestionsLimit(),
+        getSystemPrompt(),
+        getAiDocsMode(),
+        cookies().then((store) => store.get("ag_device")?.value ?? null),
+      ]);
+  } catch (error) {
+    // Błąd odczytu leci PRZED rezerwacją — użytkownik nie traci pytania.
+    console.error("Błąd odczytu danych rozmowy:", error);
+    return NextResponse.json(
+      { error: "Chwilowy problem z serwisem. Spróbuj za chwilę." },
+      { status: 500 },
+    );
   }
   const dbMs = Date.now() - startedAt;
 
-  const oneMinuteAgo = new Date(Date.now() - 60_000);
-  const recentUserMessages = await prisma.message.count({
-    where: {
-      role: "user",
-      createdAt: { gte: oneMinuteAgo },
-      conversation: { userId },
-    },
-  });
+  if (!conversation || conversation.userId !== userId) {
+    return NextResponse.json({ error: "Nie znaleziono rozmowy." }, { status: 404 });
+  }
+
   if (recentUserMessages >= RATE_LIMIT_PER_MINUTE) {
     return NextResponse.json(
       { error: "Za dużo pytań w krótkim czasie. Odczekaj minutę." },
@@ -116,8 +148,6 @@ export async function POST(request: Request) {
     );
   }
 
-  const freeQuestionsLimit = await getFreeQuestionsLimit();
-  const deviceId = (await cookies()).get("ag_device")?.value ?? null;
   const ip = getClientIp(request);
 
   let reservation: Awaited<ReturnType<typeof reserveQuestion>>;
@@ -167,11 +197,7 @@ export async function POST(request: Request) {
   // Moment wysłania pierwszego zapytania do AI — punkt zerowy dla pomiaru rund.
   let streamStartedAt = Date.now();
   try {
-    const [systemPrompt, docsMode] = await Promise.all([
-      getSystemPrompt(),
-      getAiDocsMode(),
-    ]);
-
+    // `systemPrompt` i `docsMode` są już wczytane wyżej, razem z resztą odczytów.
     const isFirstMessage = conversation.messages.length === 0;
 
     // Zapisy lecą równolegle z budowaniem zapytania do AI — na ich wynik
@@ -455,7 +481,8 @@ export async function POST(request: Request) {
               if (!streamedAnything) {
                 console.log(
                   `[czat] baza ${dbMs} ms, kontekst ${contextMs} ms ` +
-                    `(${contextChars} znaków), cache zapis ${cacheWriteTokens} / ` +
+                    `(${contextChars} znaków), przygotowanie ` +
+                    `${streamStartedAt - startedAt} ms, cache zapis ${cacheWriteTokens} / ` +
                     `odczyt ${cacheReadTokens}, pierwsze zdarzenie po ${firstEventMs} ms, ` +
                     `pierwsze słowo po ${Date.now() - startedAt} ms, ` +
                     `rundy narzędzi ${toolRounds}, ` +
