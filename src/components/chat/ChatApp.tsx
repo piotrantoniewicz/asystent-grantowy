@@ -42,6 +42,10 @@ type ScrapedSource = {
   pages: { url: string; title: string; contentType: "html" | "pdf" }[];
 };
 
+type ConversationLoad =
+  | { ok: true; messages: Message[]; sources: ScrapedSource[] }
+  | { ok: false; error: string };
+
 type ScrapeProgress = {
   htmlCount: number;
   pdfCount: number;
@@ -385,6 +389,7 @@ export default function ChatApp({
   const [pendingUrl, setPendingUrl] = useState<string | null>(null);
   const [savedSources, setSavedSources] = useState<SavedSource[]>([]);
   const [savedError, setSavedError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const organizations = savedSources.filter((s) => s.kind === "organization");
   const grants = savedSources.filter((s) => s.kind === "grant");
 
@@ -427,15 +432,43 @@ export default function ChatApp({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [organizations, sources, scrapingKinds, activeId]);
 
+  // Pobiera rozmowę z serwera. Odpowiedź błędna albo nie-JSON (np. strona błędu
+  // w HTML) kończy się czytelnym komunikatem, a nie nieobsłużonym wyjątkiem
+  // w konsoli przeglądarki.
+  async function fetchConversation(id: string): Promise<ConversationLoad> {
+    try {
+      const res = await fetch(`/api/conversations/${id}`);
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data) {
+        return {
+          ok: false,
+          error: data?.error ?? "Nie udało się wczytać rozmowy. Odśwież stronę.",
+        };
+      }
+      return {
+        ok: true,
+        messages: data.messages ?? [],
+        sources: data.scrapedSources ?? [],
+      };
+    } catch {
+      return { ok: false, error: "Brak połączenia z serwerem. Sprawdź internet i odśwież stronę." };
+    }
+  }
+
+  function applyConversation(result: ConversationLoad) {
+    if (!result.ok) {
+      setLoadError(result.error);
+      return;
+    }
+    setLoadError(null);
+    setMessages(result.messages);
+    setSources(result.sources);
+  }
+
   useEffect(() => {
     if (!activeId) return;
     stickToBottomRef.current = true;
-    fetch(`/api/conversations/${activeId}`)
-      .then((r) => r.json())
-      .then((data) => {
-        setMessages(data.messages ?? []);
-        setSources(data.scrapedSources ?? []);
-      });
+    fetchConversation(activeId).then(applyConversation);
   }, [activeId]);
 
   // Przewijamy przy nowej wiadomości/źródle — nie przy każdej literce
@@ -476,11 +509,16 @@ export default function ChatApp({
   // W przeciwieństwie do handleSelectSaved: reużywa aktywną rozmowę, jeśli
   // istnieje (nie tworzy nowej przy każdej wiadomości w toku rozmowy).
   async function ensureConversationId(firstMessageTitle?: string): Promise<string> {
-    if (activeId) return activeId;
-    const id = await createConversation();
+    const id = activeId ?? (await createConversation());
+    // Tytuł nadaje serwer przy pierwszym pytaniu (`chat/route.ts`), ale lista
+    // rozmów w menu żyje w stanie przeglądarki — bez tego wpisu zostawała na
+    // „Nowa rozmowa" aż do przeładowania strony. Podmieniamy tylko wtedy, gdy
+    // rozmowa nadal ma tytuł domyślny, żeby nie nadpisać nazwanej rozmowy.
     if (firstMessageTitle) {
       setConversations((prev) =>
-        prev.map((c) => (c.id === id ? { ...c, title: firstMessageTitle } : c)),
+        prev.map((c) =>
+          c.id === id && c.title === "Nowa rozmowa" ? { ...c, title: firstMessageTitle } : c,
+        ),
       );
     }
     return id;
@@ -564,10 +602,7 @@ export default function ChatApp({
               },
             }));
           } else if (event.event === "done") {
-            const conversationRes = await fetch(`/api/conversations/${conversationId}`);
-            const conversationData = await conversationRes.json();
-            setMessages(conversationData.messages ?? []);
-            setSources(conversationData.scrapedSources ?? []);
+            applyConversation(await fetchConversation(conversationId));
             refreshSavedSources();
           } else if (event.event === "error") {
             setScrapeProgress((prev) => ({
@@ -857,6 +892,11 @@ export default function ChatApp({
           }}
           className="min-h-0 flex-1 overflow-y-auto p-4"
         >
+          {loadError && (
+            <p className="mx-auto mb-4 max-w-2xl rounded bg-danger-soft px-3 py-2 text-sm text-danger">
+              {loadError}
+            </p>
+          )}
           {sources.length === 0 && (
             <div className="mx-auto mb-6 max-w-sm space-y-4">
               <p className="text-center text-sm text-muted">
@@ -930,7 +970,10 @@ export default function ChatApp({
 
             {(["organization", "grant"] as const).map((kind) => {
               const progress = scrapeProgress[kind];
-              if (!scrapingKinds[kind] || !progress) return null;
+              // Komunikat o błędzie zostaje na ekranie PO zakończeniu analizy —
+              // inaczej znikał razem z paskiem postępu i użytkownik widział tylko,
+              // że „nic się nie wczytało", bez podanej przyczyny.
+              if (!progress || (!scrapingKinds[kind] && !progress.errorMessage)) return null;
               return (
                 <div
                   key={kind}
