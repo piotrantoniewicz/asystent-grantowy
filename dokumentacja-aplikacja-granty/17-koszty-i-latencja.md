@@ -9,9 +9,23 @@
   Porównanie odpowiedzi na to samo pytanie o uzasadnienie projektu, z rozumowaniem
   i bez, nie pokazało różnicy w jakości. `THINKING_ENABLED = false`
   w `src/lib/ai/router.ts`; heurystyka i testy zostały — powrót to jedna linijka.
-- **Etap 2 (wariant B) — NIEROZPOCZĘTY.** To wciąż jedyna zmiana, która ruszy koszt
-  i czas odpowiedzi (uzasadnienie niżej).
-- **Etap 3 (Haiku) — NIEROZPOCZĘTY**, zablokowany do czasu Etapu 2.
+- **Etap 2 (wariant B) — ZROBIONY I ZMIERZONY (2026-07-28/29).** Punkty 2.1–2.5
+  wdrożone, migracja zastosowana, sprawdzone na żywo. **Cel kosztowy osiągnięty**:
+  koszt pierwszego pytania w rozmowie 2,30 zł → **~0,16 zł** (15× taniej),
+  kolejnego ~0,20 zł — poniżej celu 0,30 zł i poniżej ceny sprzedaży. Kontekst
+  w prompcie 350 004 → 6 686 znaków, zapis do cache 153 391 → 6 083 tokenów.
+  Jakość odpowiedzi oceniona przez właściciela jako zadowalająca.
+  **Cel czasowy NIEOSIĄGNIĘTY**: pierwsze słowo 4,4–7,3 s wobec 7,2 s przed
+  zmianą i celu „poniżej 3 s". Pomiar pokazał, że wąskie gardło przeniosło się
+  poza AI — patrz `18-zrownoleglenie-i-haiku.md`. Pełne liczby w `STATUS.md`.
+  - Odstępstwo od punktu 2.4: akapit o pracy z narzędziami siedzi w bloku
+    systemowym składanym w kodzie razem ze spisem stron, a nie w prompcie
+    w bazie — inaczej w trybie `full` prompt kazałby modelowi używać narzędzi,
+    których w tym trybie nie ma. Prompt czatu nadal jest w bazie (zasada 6).
+- **Etap 3 (Haiku) — ODBLOKOWANY, NIEROZPOCZĘTY.** Warunek („najpierw zbij
+  liczbę tokenów w prompcie") jest spełniony. Rozpisany jako Etap B
+  w `18-zrownoleglenie-i-haiku.md` — tam też Etap A (zrównoleglenie zapytań
+  do bazy), który ma pierwszeństwo.
 
 ### Co pokazały pomiary (2026-07-27, produkcyjna dokumentacja)
 

@@ -124,6 +124,11 @@ model ScrapedSource {
   // jeden wiersz zamiast wszystkich stron. Puste dla źródeł sprzed tej zmiany
   // — wtedy `chat/route.ts` składa go w locie i uzupełnia.
   contextBlob    String?
+  // Spis stron (JSON) dla trybu „dokumentacja na żądanie" — tytuł, adres
+  // i początek każdej strony, bez pełnej treści (`buildSourceIndex`). Treść
+  // model dobiera sobie narzędziami. Puste dla źródeł sprzed tej zmiany —
+  // wtedy `chat/route.ts` składa spis w locie i uzupełnia w tle.
+  indexBlob      String?
   createdAt      DateTime            @default(now())
 
   conversation Conversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)

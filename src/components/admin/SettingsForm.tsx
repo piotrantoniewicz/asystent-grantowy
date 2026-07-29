@@ -1,20 +1,24 @@
 "use client";
 
 import { useState } from "react";
+import type { AiDocsMode } from "@/lib/settings";
 
 export default function SettingsForm({
   initialSystemPrompt,
   initialFreeQuestionsLimit,
+  initialAiDocsMode,
   defaultSystemPrompt,
 }: {
   initialSystemPrompt: string;
   initialFreeQuestionsLimit: number;
+  initialAiDocsMode: AiDocsMode;
   defaultSystemPrompt: string;
 }) {
   const [systemPrompt, setSystemPrompt] = useState(initialSystemPrompt);
   const [freeQuestionsLimit, setFreeQuestionsLimit] = useState(
     String(initialFreeQuestionsLimit),
   );
+  const [aiDocsMode, setAiDocsMode] = useState<AiDocsMode>(initialAiDocsMode);
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -30,6 +34,7 @@ export default function SettingsForm({
         body: JSON.stringify({
           systemPrompt,
           freeQuestionsLimit: Number(freeQuestionsLimit),
+          aiDocsMode,
         }),
       });
       const data = await res.json().catch(() => null);
@@ -83,6 +88,29 @@ export default function SettingsForm({
           onChange={(e) => setFreeQuestionsLimit(e.target.value)}
           className="w-32 rounded border border-border bg-background p-2 text-sm text-foreground"
         />
+      </div>
+
+      <div className="rounded border border-border bg-surface p-4 shadow-sm">
+        <label className="mb-2 block text-sm font-semibold text-foreground">
+          Sposób podawania dokumentacji asystentowi
+        </label>
+        <select
+          value={aiDocsMode}
+          onChange={(e) => setAiDocsMode(e.target.value as AiDocsMode)}
+          className="w-full max-w-md rounded border border-border bg-background p-2 text-sm text-foreground"
+        >
+          <option value="ondemand">
+            Czytana na żądanie (tańsza i szybsza) — zalecane
+          </option>
+          <option value="full">Cała w każdym pytaniu (stary sposób)</option>
+        </select>
+        <p className="mt-2 text-xs text-muted">
+          „Na żądanie”: asystent dostaje spis stron dokumentacji i sam otwiera te,
+          których potrzebuje. Pytanie kosztuje wtedy kilka razy mniej i odpowiedź
+          zaczyna się szybciej. „Cała w każdym pytaniu”: jak przed zmianą z lipca
+          2026 — droga powrotu, gdyby jakość odpowiedzi spadła. Zmiana działa od
+          kolejnego pytania, także w trwających rozmowach.
+        </p>
       </div>
 
       <div className="flex items-center gap-3">

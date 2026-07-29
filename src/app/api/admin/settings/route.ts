@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import { requireAdminSession } from "@/lib/admin";
 import {
+  getAiDocsMode,
   getFreeQuestionsLimit,
   getSystemPrompt,
+  setAiDocsMode,
   setFreeQuestionsLimit,
   setSystemPrompt,
 } from "@/lib/settings";
@@ -14,14 +16,16 @@ export async function GET() {
     return NextResponse.json({ error: "Nie znaleziono." }, { status: 404 });
   }
 
-  const [systemPrompt, freeQuestionsLimit] = await Promise.all([
+  const [systemPrompt, freeQuestionsLimit, aiDocsMode] = await Promise.all([
     getSystemPrompt(),
     getFreeQuestionsLimit(),
+    getAiDocsMode(),
   ]);
 
   return NextResponse.json({
     systemPrompt,
     freeQuestionsLimit,
+    aiDocsMode,
     defaultSystemPrompt: DEFAULT_SYSTEM_PROMPT,
   });
 }
@@ -33,7 +37,7 @@ export async function PUT(request: Request) {
   }
 
   const body = (await request.json().catch(() => null)) as
-    | { systemPrompt?: string; freeQuestionsLimit?: number }
+    | { systemPrompt?: string; freeQuestionsLimit?: number; aiDocsMode?: string }
     | null;
 
   if (
@@ -54,9 +58,17 @@ export async function PUT(request: Request) {
     );
   }
 
+  if (body.aiDocsMode !== undefined && body.aiDocsMode !== "ondemand" && body.aiDocsMode !== "full") {
+    return NextResponse.json(
+      { error: "Tryb dokumentacji musi być „ondemand” albo „full”." },
+      { status: 400 },
+    );
+  }
+
   await Promise.all([
     setSystemPrompt(body.systemPrompt),
     setFreeQuestionsLimit(limit),
+    ...(body.aiDocsMode ? [setAiDocsMode(body.aiDocsMode)] : []),
   ]);
 
   return NextResponse.json({ ok: true });

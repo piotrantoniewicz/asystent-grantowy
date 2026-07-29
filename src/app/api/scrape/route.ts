@@ -6,7 +6,7 @@ import { crawlSite, type ScrapeKind } from "@/lib/scraper/crawl";
 import { SCRAPE_FAILED_MESSAGE } from "@/lib/scraper/messages";
 import { summarizeScrape } from "@/lib/scraper/summarize";
 import { AI_CONFIG_ERROR_MESSAGE, isAiConfigError } from "@/lib/ai/client";
-import { buildSourceContext } from "@/lib/ai/context";
+import { buildSourceContext, buildSourceIndex } from "@/lib/ai/context";
 
 export const maxDuration = 300;
 
@@ -107,7 +107,9 @@ export async function POST(request: Request) {
           : null;
 
         if (reusableSource) {
-          await prisma.scrapedPage.createMany({
+          // `createManyAndReturn` zamiast `createMany`, bo do spisu stron
+          // (`indexBlob`) potrzebne są identyfikatory świeżo utworzonych wierszy.
+          const copiedPages = await prisma.scrapedPage.createManyAndReturn({
             data: reusableSource.pages.map((p) => ({
               sourceId: source.id,
               url: p.url,
@@ -115,6 +117,7 @@ export async function POST(request: Request) {
               title: p.title,
               textContent: p.textContent,
             })),
+            select: { id: true, url: true, title: true, textContent: true },
           });
           await prisma.scrapedSource.update({
             where: { id: source.id },
@@ -128,6 +131,13 @@ export async function POST(request: Request) {
                   summary: reusableSource.summary,
                   pages: reusableSource.pages,
                 }),
+              // Spisu NIE kopiujemy ze źródła wzorcowego — wskazywałby na jego
+              // strony, a nie na kopie utworzone przed chwilą.
+              indexBlob: buildSourceIndex({
+                kind,
+                summary: reusableSource.summary,
+                pages: copiedPages,
+              }),
             },
           });
 
@@ -168,7 +178,7 @@ export async function POST(request: Request) {
           return;
         }
 
-        await prisma.scrapedPage.createMany({
+        const createdPages = await prisma.scrapedPage.createManyAndReturn({
           data: result.pages.map((p) => ({
             sourceId: source.id,
             url: p.url,
@@ -176,6 +186,7 @@ export async function POST(request: Request) {
             title: p.title,
             textContent: p.textContent,
           })),
+          select: { id: true, url: true, title: true, textContent: true },
         });
 
         const summary = await summarizeScrape(kind, result.pages);
@@ -186,6 +197,7 @@ export async function POST(request: Request) {
             status: "done",
             summary,
             contextBlob: buildSourceContext({ kind, summary, pages: result.pages }),
+            indexBlob: buildSourceIndex({ kind, summary, pages: createdPages }),
           },
         });
 
