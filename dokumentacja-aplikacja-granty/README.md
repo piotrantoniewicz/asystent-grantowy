@@ -37,6 +37,8 @@ organizacjom pozarządowym pisać wnioski o granty. Dokumentacja jest przygotowa
 | `15-przeglad-kodu-poprawki.md` | Instrukcja poprawek N1–N11 z przeglądu kodu 2026-07-17 |
 | `16-wdrozenie.md` | Instrukcja Etapu 9: wdrożenie na Vercel pod subdomeną asystent.dobryai.pl |
 | `17-koszty-i-latencja.md` | Instrukcja: obniżenie kosztów AI i czasu odpowiedzi (Etap 1 — szybkie oszczędności, Etap 2 — dokumentacja czytana na żądanie) |
+| `18-zrownoleglenie-i-haiku.md` | Instrukcja: równoległe zapytania do bazy (Etap A) i Haiku dla pytań wyszukujących (Etap B) |
+| `19-backlog-optymalizacji.md` | **Co jeszcze do zrobienia** w kosztach i czasie odpowiedzi — stan po sesji pomiarowej 2026-07-29 |
 | `CLAUDE-md-szablon.md` | Szablon pliku CLAUDE.md do głównego folderu projektu |
 
 ## Najważniejsze decyzje (podjęte 2026-07-11)
