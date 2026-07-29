@@ -100,6 +100,12 @@ const WRITING_VERB_HINTS = [
 /**
  * Słowa typowe dla pytań o ocenę, analizę i doradztwo — to jest sedno produktu
  * i zostaje na Sonnecie, nawet jeśli pytanie jest krótkie.
+ *
+ * Lista musi łapać także pytania O NAS (czy damy radę, czy zespół podoła), a nie
+ * tylko o konkurs. Bez nich wystarczyło, że użytkownik wymieni „terminy" jako
+ * jedną z przesłanek — pytanie „biorąc pod uwagę doświadczenie organizacji (…)
+ * i terminy czy 3-osobowy zespół poradzi sobie z aplikacją?" szło na Haiku,
+ * bo trafiało w `LOOKUP_HINTS`, a w tej liście nie trafiało w nic (2026-07-29).
  */
 const ANALYSIS_HINTS = [
   "kwalifikowal",
@@ -109,6 +115,19 @@ const ANALYSIS_HINTS = [
   "czy nasza",
   "czy nasz ",
   "czy mamy szans",
+  "biorąc pod uwagę",
+  "czy zespół",
+  "czy zespol",
+  "poradzi sobie",
+  "poradzimy",
+  "damy radę",
+  "damy rade",
+  "podołamy",
+  "podolamy",
+  "zdążymy",
+  "zdazymy",
+  "wystarczy nam",
+  "czy warto",
   "oceń",
   "ocena",
   "przeanalizuj",

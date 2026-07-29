@@ -88,6 +88,20 @@ describe("looksLikeLookupQuestion", () => {
     }
   });
 
+  it("zostawia na Sonnecie pytania o zdolność zespołu, mimo słowa o terminach", () => {
+    const questions = [
+      // Realne pytanie z produkcji (2026-07-29): poszło na Haiku, bo trafiło
+      // w „termin", a w liście analitycznej nie trafiało wtedy w nic.
+      "biorąc pod uwagę doświadczenie organizacji, wymogi merytoryczne konkursu i terminy czy 3 osobowy zespol poradzi sobie z aplikacja?",
+      "Czy zespół 3 osób zdąży z wnioskiem do terminu naboru?",
+      "Czy damy radę w tym terminie?",
+      "Czy warto startować, skoro termin jest za dwa tygodnie?",
+    ];
+    for (const question of questions) {
+      expect(looksLikeLookupQuestion(question), question).toBe(false);
+    }
+  });
+
   it("nie zależy od wielkości liter", () => {
     expect(looksLikeLookupQuestion("DO KIEDY TRWA NABÓR?")).toBe(true);
   });
