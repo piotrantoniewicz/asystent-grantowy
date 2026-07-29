@@ -31,7 +31,8 @@ import {
   toolLimitResult,
   type DocsToolContext,
 } from "@/lib/ai/tools";
-import { STATUS_THINKING } from "@/lib/chat-stream";
+import { markToolResultsForCache } from "@/lib/ai/cache";
+import { STATUS_THINKING, STATUS_TOOLS, STATUS_WRITING } from "@/lib/chat-stream";
 import {
   MESSAGE_MAX_LENGTH,
   RATE_LIMIT_PER_MINUTE,
@@ -335,9 +336,9 @@ export async function POST(request: Request) {
     // Godzinny cache opłaca się tylko przy długich przerwach między pytaniami;
     // w normalnej rozmowie pytania idą co kilkadziesiąt sekund.
     //
-    // Punkt cache'owania stoi na końcu bloku systemowego, bo tylko on jest
-    // stały w obrębie rozmowy. Wyniki narzędzi rosną w `messages` i nie są
-    // dobrym punktem cache.
+    // Pierwszy punkt cache'owania stoi na końcu bloku systemowego (stały
+    // w obrębie rozmowy). Drugi wędruje po `messages` — patrz
+    // `markToolResultsForCache` w pętli narzędziowej niżej.
     systemBlocks = sourceIndex
       ? [
           { type: "text", text: systemPrompt },
@@ -436,6 +437,22 @@ export async function POST(request: Request) {
         controller.enqueue(encoder.encode(STATUS_THINKING));
       }
 
+      // Wskaźnik „czytam dokumentację" zapalamy raz na rundę i gasimy, gdy
+      // model zaczyna pisać. Bez gaszenia wskaźnik zostawałby pod gotową
+      // odpowiedzią; bez zapalania w każdej rundzie znikałby po pierwszym
+      // zdaniu i użytkownik przez kilkadziesiąt sekund widziałby martwy ekran.
+      let toolsStatusSent = false;
+      function sendToolsStatus() {
+        if (toolsStatusSent) return;
+        toolsStatusSent = true;
+        controller.enqueue(encoder.encode(STATUS_TOOLS));
+      }
+      function sendWritingStatus() {
+        if (!toolsStatusSent) return;
+        toolsStatusSent = false;
+        controller.enqueue(encoder.encode(STATUS_WRITING));
+      }
+
       try {
         let currentStream = stream;
         let isRefusal = false;
@@ -472,6 +489,7 @@ export async function POST(request: Request) {
               event.content_block.type === "tool_use"
             ) {
               sendStatusOnce();
+              sendToolsStatus();
             }
 
             if (
@@ -479,6 +497,7 @@ export async function POST(request: Request) {
               event.delta.type === "text_delta"
             ) {
               if (roundFirstTextMs === null) roundFirstTextMs = Date.now() - roundStartedAt;
+              sendWritingStatus();
               if (!streamedAnything) {
                 console.log(
                   `[czat] baza ${dbMs} ms, kontekst ${contextMs} ms ` +
@@ -564,6 +583,7 @@ export async function POST(request: Request) {
             });
           }
           messages.push({ role: "user", content: toolResults });
+          markToolResultsForCache(messages);
 
           console.log(
             `[czat/runda ${toolRounds}] model odpowiedział po ${roundFirstEventMs} ms ` +

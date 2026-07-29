@@ -368,6 +368,10 @@ export default function ChatApp({
   // Model zaczął rozumować — pokazujemy to pod dymkiem, żeby kilka sekund ciszy
   // nie wyglądało jak zawieszona aplikacja.
   const [isAnalysing, setIsAnalysing] = useState(false);
+  // Model czyta dokumentację narzędziami — trwa to kilkanaście sekund i dzieje
+  // się także PO tym, jak napisał pierwsze zdanie („Sprawdzę…"), więc wskaźnik
+  // musi być niezależny od `isThinking`, który gaśnie przy pierwszym słowie.
+  const [isReadingDocs, setIsReadingDocs] = useState(false);
   const [limitError, setLimitError] = useState<string | null>(null);
   const [limitErrorBuyUrl, setLimitErrorBuyUrl] = useState<string | null>(null);
   const [remaining, setRemaining] = useState<{
@@ -475,7 +479,7 @@ export default function ChatApp({
   // dopisywanej do odpowiedzi (tym zajmuje się już strumień w handleSend).
   useEffect(() => {
     scrollToBottom(true);
-  }, [messages.length, sources.length, isThinking, scrapeProgress]);
+  }, [messages.length, sources.length, isThinking, isReadingDocs, scrapeProgress]);
 
   // Tworzy nową rozmowę: POST, dopisanie na początek listy, ustawienie jako
   // aktywnej i wyczyszczenie widoku wiadomości/źródeł. Zwraca id nowej rozmowy.
@@ -745,7 +749,10 @@ export default function ChatApp({
           if (start === -1) break;
           const end = pending.indexOf(STATUS_MARK, start + 1);
           if (end === -1) break; // znacznik jeszcze niekompletny — czekamy
-          if (pending.slice(start + 1, end) === "thinking") setIsAnalysing(true);
+          const status = pending.slice(start + 1, end);
+          if (status === "thinking") setIsAnalysing(true);
+          if (status === "tools") setIsReadingDocs(true);
+          if (status === "writing") setIsReadingDocs(false);
           pending = pending.slice(0, start) + pending.slice(end + 1);
         }
 
@@ -779,6 +786,7 @@ export default function ChatApp({
       setIsSending(false);
       setIsThinking(false);
       setIsAnalysing(false);
+      setIsReadingDocs(false);
     }
   }
 
@@ -992,8 +1000,16 @@ export default function ChatApp({
               );
             })}
 
-            {isThinking && (
-              <ThinkingDots label={isAnalysing ? "Analizuję dokumentację…" : undefined} />
+            {(isThinking || isReadingDocs) && (
+              <ThinkingDots
+                label={
+                  isReadingDocs
+                    ? "Czytam dokumentację konkursu…"
+                    : isAnalysing
+                      ? "Analizuję dokumentację…"
+                      : undefined
+                }
+              />
             )}
           </div>
         </div>
