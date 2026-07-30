@@ -95,6 +95,7 @@ type SavedSource = {
 // a pod listą jest pole na dodanie nowego linku.
 function SavedSection({
   title,
+  hint,
   emptyLabel,
   items,
   isScraping,
@@ -103,6 +104,7 @@ function SavedSection({
   onAdd,
 }: {
   title: string;
+  hint: string;
   emptyLabel: string;
   items: SavedSource[];
   isScraping: boolean;
@@ -123,9 +125,10 @@ function SavedSection({
 
   return (
     <div className="border-t border-border pt-2">
-      <p className="px-1 pb-1 text-xs font-semibold uppercase tracking-wide text-muted">
+      <p className="px-1 text-xs font-semibold uppercase tracking-wide text-muted">
         {title}
       </p>
+      {items.length > 0 && <p className="px-1 pb-1 text-xs text-muted">{hint}</p>}
       <div className="space-y-0.5">
         {items.length === 0 && (
           <p className="px-1 pb-1 text-xs text-muted">{emptyLabel}</p>
@@ -143,9 +146,18 @@ function SavedSection({
               <button
                 onClick={() => onSelect(item.rootUrl)}
                 disabled={isScraping}
-                className="min-w-0 flex-1 truncate px-2 py-1.5 text-left text-sm text-foreground disabled:opacity-50"
+                aria-label={`Wczytaj „${item.name}” do rozmowy`}
+                className="flex min-w-0 flex-1 cursor-pointer items-center gap-1 px-2 py-1.5 text-left text-sm text-foreground disabled:cursor-default disabled:opacity-50"
               >
-                {item.name}
+                <span className="min-w-0 flex-1 truncate">{item.name}</span>
+                {/* Widoczne po najechaniu — na dotyku rolę podpowiedzi pełni
+                    zdanie pod nagłówkiem sekcji. */}
+                <span
+                  aria-hidden
+                  className="flex-shrink-0 whitespace-nowrap text-xs font-medium text-primary-hover opacity-0 transition-opacity group-hover:opacity-100"
+                >
+                  Wczytaj →
+                </span>
               </button>
               <button
                 onClick={(e) => {
@@ -398,6 +410,7 @@ export default function ChatApp({
   const grants = savedSources.filter((s) => s.kind === "grant");
 
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   // Czy użytkownik jest przy dole rozmowy. Jeśli przewinął w górę (żeby coś
   // przeczytać), nie ściągamy go na siłę na dół przy każdej nowej literce.
   const stickToBottomRef = useRef(true);
@@ -409,12 +422,34 @@ export default function ChatApp({
     el.scrollTo({ top: el.scrollHeight, behavior: smooth ? "smooth" : "auto" });
   }
 
+  // Pole na wiadomość rośnie razem z tekstem (do wysokości z `max-h-64`, potem
+  // przewija się w środku). Musi liczyć od zera, bo inaczej po skasowaniu tekstu
+  // nigdy by się nie zmniejszyło.
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [input]);
+
   useEffect(() => {
     fetch("/api/me")
       .then((r) => r.json())
       .then(setRemaining)
       .catch(() => {});
   }, [messages.length]);
+
+  // Tytuł rozmowy nadaje serwer (przy pierwszym pytaniu i po analizie konkursu),
+  // więc listę w menu trzeba po takim zdarzeniu pobrać na nowo — inaczej wisiałaby
+  // na „Nowa rozmowa" aż do przeładowania strony.
+  function refreshConversations() {
+    fetch("/api/conversations")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (Array.isArray(data)) setConversations(data);
+      })
+      .catch(() => {});
+  }
 
   function refreshSavedSources() {
     fetch("/api/saved-sources")
@@ -493,8 +528,18 @@ export default function ChatApp({
     return conversation.id;
   }
 
-  async function handleNewConversation() {
-    await createConversation();
+  // Świadomie NIE zakłada rozmowy w bazie — czyści tylko ekran. Pusty wpis
+  // „Nowa rozmowa" pojawiał się na liście obok rozmowy, którą użytkownik właśnie
+  // prowadził, więc wyglądało to jak dwie nowe pozycje zamiast jednej. Rozmowa
+  // powstaje dopiero przy pierwszym pytaniu albo pierwszej analizie strony
+  // (`ensureConversationId`) i od razu z właściwym tytułem.
+  function handleNewConversation() {
+    setActiveId(null);
+    setMessages([]);
+    setSources([]);
+    setLoadError(null);
+    // Pozwalamy ponownie wczytać automatycznie jedyną zapamiętaną organizację.
+    autoScrapedForRef.current = null;
     setSidebarOpen(false);
   }
 
@@ -608,6 +653,7 @@ export default function ChatApp({
           } else if (event.event === "done") {
             applyConversation(await fetchConversation(conversationId));
             refreshSavedSources();
+            refreshConversations();
           } else if (event.event === "error") {
             setScrapeProgress((prev) => ({
               ...prev,
@@ -787,6 +833,7 @@ export default function ChatApp({
       setIsThinking(false);
       setIsAnalysing(false);
       setIsReadingDocs(false);
+      refreshConversations();
     }
   }
 
@@ -821,6 +868,7 @@ export default function ChatApp({
 
         <SavedSection
           title="Moje organizacje"
+          hint="Kliknij, aby wczytać do rozmowy"
           emptyLabel="Brak zapisanych. Dodaj adres strony swojej organizacji."
           items={organizations}
           isScraping={scrapingKinds.organization}
@@ -831,6 +879,7 @@ export default function ChatApp({
 
         <SavedSection
           title="Konkursy grantowe"
+          hint="Kliknij, aby wczytać do rozmowy"
           emptyLabel="Brak zapisanych. Dodaj adres strony konkursu."
           items={grants}
           isScraping={scrapingKinds.grant}
@@ -1033,19 +1082,28 @@ export default function ChatApp({
             e.preventDefault();
             handleSend();
           }}
-          className="mx-auto mb-4 flex w-full max-w-2xl gap-2 px-4"
+          className="mx-auto mb-4 flex w-full max-w-2xl items-end gap-2 px-4"
         >
-          <input
+          <textarea
+            ref={inputRef}
+            rows={1}
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Napisz wiadomość…"
+            onKeyDown={(e) => {
+              // Enter wysyła, Shift+Enter (albo Ctrl/Cmd+Enter) robi nową linijkę.
+              if (e.key === "Enter" && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
+                e.preventDefault();
+                handleSend();
+              }
+            }}
+            placeholder="Napisz wiadomość… (Shift+Enter — nowa linijka)"
             disabled={isSending}
-            className="flex-1 rounded border border-border bg-surface px-3 py-2 text-sm text-foreground placeholder:text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            className="max-h-64 flex-1 resize-none overflow-y-auto rounded border border-border bg-surface px-3 py-2 text-sm leading-relaxed text-foreground placeholder:text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
           />
           <button
             type="submit"
             disabled={isSending || !input.trim()}
-            className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary-hover disabled:opacity-50"
+            className="flex-shrink-0 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary-hover disabled:opacity-50"
           >
             Wyślij
           </button>
