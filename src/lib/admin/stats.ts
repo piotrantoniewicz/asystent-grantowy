@@ -22,7 +22,24 @@ export type AdminStats = {
   estimatedAiCostUsd: number;
   modelUsage: Record<string, number>;
   dailyQuestions: { date: string; count: number }[];
+  // Rozkład liczby rund narzędziowych w odpowiedziach z ostatnich 30 dni.
+  // Odpowiada na pytanie z zadania 2 backlogu optymalizacji: czy warto płacić
+  // dopłatę za zapis do cache już w pierwszej rundzie.
+  toolRounds: { rounds: number; count: number }[];
+  // Mediany, nie średnie — jedna bardzo długa odpowiedź nie ma zaburzać obrazu.
+  medianFirstTextMs: number | null;
+  medianTotalMs: number | null;
+  measuredAnswers: number;
 };
+
+function median(values: number[]): number | null {
+  if (values.length === 0) return null;
+  const sorted = [...values].sort((a, b) => a - b);
+  const middle = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 0
+    ? Math.round((sorted[middle - 1] + sorted[middle]) / 2)
+    : sorted[middle];
+}
 
 export async function getAdminStats(): Promise<AdminStats> {
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
@@ -36,6 +53,7 @@ export async function getAdminStats(): Promise<AdminStats> {
     revenueLast30Days,
     assistantMessagesByModel,
     recentUserMessages,
+    recentAnswerTimings,
   ] = await Promise.all([
     prisma.user.count(),
     prisma.user.count({ where: { createdAt: { gte: thirtyDaysAgo } } }),
@@ -65,6 +83,16 @@ export async function getAdminStats(): Promise<AdminStats> {
     prisma.message.findMany({
       where: { role: "user", createdAt: { gte: thirtyDaysAgo } },
       select: { createdAt: true },
+    }),
+    // Tylko odpowiedzi zapisane PO wdrożeniu pomiarów mają te pola wypełnione;
+    // starsze wiersze mają `null` i są tu pomijane.
+    prisma.message.findMany({
+      where: {
+        role: "assistant",
+        createdAt: { gte: thirtyDaysAgo },
+        toolRounds: { not: null },
+      },
+      select: { toolRounds: true, firstTextMs: true, totalMs: true },
     }),
   ]);
 
@@ -97,6 +125,15 @@ export async function getAdminStats(): Promise<AdminStats> {
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([date, count]) => ({ date, count }));
 
+  const roundsCounts = new Map<number, number>();
+  for (const { toolRounds } of recentAnswerTimings) {
+    const rounds = toolRounds!;
+    roundsCounts.set(rounds, (roundsCounts.get(rounds) ?? 0) + 1);
+  }
+  const toolRoundsDistribution = [...roundsCounts.entries()]
+    .sort(([a], [b]) => a - b)
+    .map(([rounds, count]) => ({ rounds, count }));
+
   return {
     totalUsers,
     usersLast30Days,
@@ -107,5 +144,13 @@ export async function getAdminStats(): Promise<AdminStats> {
     estimatedAiCostUsd: Math.round(estimatedAiCostUsd * 100) / 100,
     modelUsage,
     dailyQuestions,
+    toolRounds: toolRoundsDistribution,
+    medianFirstTextMs: median(
+      recentAnswerTimings.map((m) => m.firstTextMs).filter((v): v is number => v !== null),
+    ),
+    medianTotalMs: median(
+      recentAnswerTimings.map((m) => m.totalMs).filter((v): v is number => v !== null),
+    ),
+    measuredAnswers: recentAnswerTimings.length,
   };
 }

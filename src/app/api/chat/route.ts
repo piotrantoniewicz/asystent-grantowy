@@ -420,6 +420,9 @@ export async function POST(request: Request) {
       // czas rozumowania; to, co przed pierwszym zdarzeniem — wysyłka i przetworzenie
       // promptu. Dane o cache niesie już `message_start`, nie trzeba czekać na koniec.
       let firstEventMs: number | null = null;
+      // To samo „pierwsze słowo", które idzie do logu — zapisujemy je też przy
+      // wiadomości, żeby dało się oglądać rozkład czasów po kilku dniach.
+      let firstTextMs: number | null = null;
       let cacheWriteTokens = 0;
       let cacheReadTokens = 0;
       let statusSent = false;
@@ -499,12 +502,13 @@ export async function POST(request: Request) {
               if (roundFirstTextMs === null) roundFirstTextMs = Date.now() - roundStartedAt;
               sendWritingStatus();
               if (!streamedAnything) {
+                firstTextMs = Date.now() - startedAt;
                 console.log(
                   `[czat] baza ${dbMs} ms, kontekst ${contextMs} ms ` +
                     `(${contextChars} znaków), przygotowanie ` +
                     `${streamStartedAt - startedAt} ms, cache zapis ${cacheWriteTokens} / ` +
                     `odczyt ${cacheReadTokens}, pierwsze zdarzenie po ${firstEventMs} ms, ` +
-                    `pierwsze słowo po ${Date.now() - startedAt} ms, ` +
+                    `pierwsze słowo po ${firstTextMs} ms, ` +
                     `rundy narzędzi ${toolRounds}, ` +
                     `rozumowanie ${useThinking ? "tak" : "nie"}${
                       process.env.AI_THINKING ? ` (AI_THINKING=${process.env.AI_THINKING})` : ""
@@ -626,6 +630,9 @@ export async function POST(request: Request) {
               outputTokens: usage.output,
               cacheCreationInputTokens: usage.cacheWrite,
               cacheReadInputTokens: usage.cacheRead,
+              toolRounds,
+              firstTextMs,
+              totalMs: Date.now() - startedAt,
             },
           });
           await prisma.conversation.update({

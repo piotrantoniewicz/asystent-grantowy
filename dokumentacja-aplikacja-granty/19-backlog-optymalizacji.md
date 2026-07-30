@@ -75,12 +75,21 @@ zapisu (pomiar 17:17) to ok. **6 groszy na pytanie**. Przy wielorundowym
 oszczędność jest kilkukrotnie większa niż dopłata, więc bilans zależy wyłącznie
 od tego, jaka część pytań kończy się na jednej rundzie.
 
-**Czego brakuje do decyzji:** rozkładu liczby rund. Wyciągnąć z logów
-produkcyjnych (`[czat/razem] … rundy narzędzi N`) z kilku dni. **Uwaga: logi
-Vercela w tym planie znikają po godzinie** — 29.07 wieczorem nie było już czego
-czytać z popołudnia. Żeby zebrać rozkład, trzeba albo czytać logi na bieżąco,
-albo zapisywać liczbę rund do bazy przy wiadomości (dziś `Message` trzyma tokeny,
-ale nie liczbę rund — to byłaby najmniejsza zmiana, jeden dodatkowy `Int`).
+**Czego brakuje do decyzji:** rozkładu liczby rund. **Zbieranie danych jest już
+włączone (30.07)** — patrz niżej. Teraz trzeba tylko poczekać na ruch.
+
+**Jak teraz zebrać rozkład (zrobione 30.07):** `Message` ma trzy nowe pola —
+`toolRounds`, `firstTextMs`, `totalMs` (migracja
+`20260730113302_add_message_timing_and_tool_rounds`). Wypełniają się przy każdej
+odpowiedzi zapisanej w bazie, więc dane zostają na stałe, w przeciwieństwie do
+logów Vercela, które **znikają po godzinie**. Rozkład widać w `/admin` w ramce
+„Ile razy AI sięgało do dokumentacji" (ostatnie 30 dni), a przy pojedynczej
+odpowiedzi w podglądzie rozmowy. Starsze wiadomości mają te pola puste i są
+w statystyce pomijane — licznik „odpowiedzi z pomiarem" mówi, na ilu wierszach
+liczony jest rozkład.
+
+**Kiedy decydować:** gdy w `/admin` uzbiera się kilkadziesiąt zmierzonych
+odpowiedzi z prawdziwego ruchu. Wcześniej rozkład nic nie znaczy.
 
 **Co już wiadomo (pomiar z zadania 1):** trzy różne pytania na produkcyjnej
 dokumentacji, w tym jedno wyraźnie złożone, dały **po jednej rundzie**.
@@ -165,15 +174,21 @@ Każda z tych zmian **podnosi koszty** (więcej pytań na Sonnecie), więc wymag
 - **Testy webhooka Stripe** (`src/lib/stripe/webhook.test.ts`) zawsze czerwone
   lokalnie — wymagają bazy z „test" w nazwie. To celowy guard, nie awaria, ale
   psuje sygnał z `npm test`. Rozważyć osobny branch testowy w Neonie.
-- **Kopie w `.claude/worktrees/`** powielają pliki testowe, przez co `npm test`
-  raportuje te same testy po kilka razy. Sprawdzić, czy worktree są jeszcze
-  potrzebne.
+- ~~**Kopie w `.claude/worktrees/`** powielają pliki testowe~~ — ZROBIONE 30.07:
+  `vitest.config.ts` wyklucza `.claude/worktrees/**`, więc `npm test` liczy każdy
+  test raz (73 testy, 9 plików; wcześniej raportowało 148 w 21 plikach — te same
+  testy po kilka razy). Trzy katalogi robocze (`dapper-dancing-catmull`,
+  `gitignore-fix`, `speed-insights-analytics`) usunięte decyzją właściciela przez
+  `git worktree remove` — nie miały niezapisanych zmian, a ich gałęzie
+  (`worktree-gitignore-fix`, `worktree-speed-insights-analytics`,
+  `docs-update-analytics-deploy`) zostały w repozytorium, więc commity są
+  do odzyskania. Wykluczenie w `vitest.config.ts` zostaje na przyszłość.
 
 ---
 
 ## Skąd wiadomo, że coś działa
 
-**Dwa źródła pomiarów, do różnych rzeczy.**
+**Trzy źródła pomiarów, do różnych rzeczy.**
 
 **1. Skrypt `npm run pomiar:cache`** — do porównań „ta sama rzecz z poprawką
 i bez". Zadaje to samo pytanie dwa razy i różni się między przebiegami tylko
@@ -192,6 +207,13 @@ Wiersze, które niosą treść:
 - `[czat/runda N]` — ile trwała runda, ile tokenów wejścia, **ile z cache**;
 - `[czat/runda N — odpowiedź]` — przygotowanie promptu vs pierwsze słowo;
 - `[czat/razem]` — czas całkowity, liczba rund, suma tokenów.
+
+**3. Panel `/admin` (od 30.07)** — do statystyk z wielu dni, których logi nie
+utrzymają: rozkład liczby rund narzędziowych, mediana czasu odpowiedzi i mediana
+czasu do pierwszego słowa (ostatnie 30 dni, tylko odpowiedzi zapisane po 30.07).
+Liczone z pól `toolRounds`, `firstTextMs`, `totalMs` w tabeli `Message`. To jest
+źródło do odpowiedzi „jak to wygląda zwykle", nie „dlaczego to pytanie trwało
+tyle" — na to drugie nadal potrzebne są logi na żywo.
 
 Jedno zdanie ostrzeżenia na przyszłość: **dwa pomiary, które różnią się modelem
 albo liczbą rund, nie porównują tego samego.** Dziś trzykrotnie wyciągnąłem

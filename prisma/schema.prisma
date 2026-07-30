@@ -93,6 +93,12 @@ model Message {
   outputTokens             Int?
   cacheCreationInputTokens Int?
   cacheReadInputTokens     Int?
+  // Pomiary jednej odpowiedzi. Trzymamy je w bazie, bo logi Vercela znikają
+  // po godzinie — bez tego nie da się zebrać rozkładu z kilku dni
+  // (patrz `dokumentacja-aplikacja-granty/19-backlog-optymalizacji.md`, zadanie 2).
+  toolRounds               Int?
+  firstTextMs              Int?
+  totalMs                  Int?
   createdAt                DateTime    @default(now())
 
   conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)

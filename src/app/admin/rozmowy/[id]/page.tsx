@@ -64,6 +64,13 @@ export default async function AdminConversationDetailPage({
               {m.role === "user" ? "Użytkownik" : `Asystent${m.modelUsed ? ` (${m.modelUsed})` : ""}`}
               {" · "}
               {m.createdAt.toLocaleString("pl-PL")}
+              {m.role === "assistant" && m.toolRounds !== null && (
+                <>
+                  {" · "}
+                  {`${m.toolRounds} × czytanie dokumentacji`}
+                  {m.totalMs !== null && ` · ${(m.totalMs / 1000).toFixed(1)} s`}
+                </>
+              )}
             </p>
             <p className="whitespace-pre-wrap text-foreground">{m.content}</p>
           </div>

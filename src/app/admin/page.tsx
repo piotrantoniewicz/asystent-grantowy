@@ -18,10 +18,24 @@ function StatCard({
   );
 }
 
+// „1 runda", „2 rundy", „5 rund" — polska odmiana, żeby tabelka nie zgrzytała.
+function odmianaRund(n: number) {
+  if (n === 1) return "runda";
+  const ostatnia = n % 10;
+  const dwieOstatnie = n % 100;
+  if (ostatnia >= 2 && ostatnia <= 4 && (dwieOstatnie < 12 || dwieOstatnie > 14)) {
+    return "rundy";
+  }
+  return "rund";
+}
+
 export default async function AdminDashboardPage() {
   const stats = await getAdminStats();
 
   const maxDaily = Math.max(1, ...stats.dailyQuestions.map((d) => d.count));
+
+  const sekundy = (ms: number | null) =>
+    ms === null ? "—" : `${(ms / 1000).toFixed(1)} s`;
 
   return (
     <div className="flex flex-col gap-6">
@@ -51,6 +65,40 @@ export default async function AdminDashboardPage() {
           value={`${stats.modelUsage["claude-haiku-4-5"] ?? 0} / ${stats.modelUsage["claude-sonnet-5"] ?? 0}`}
           sub="podział odpowiedzi na model"
         />
+        <StatCard
+          label="Czas odpowiedzi (mediana)"
+          value={sekundy(stats.medianTotalMs)}
+          sub={`pierwsze słowo po ${sekundy(stats.medianFirstTextMs)} · ${stats.measuredAnswers} odpowiedzi z pomiarem`}
+        />
+      </div>
+
+      <div className="rounded border border-border bg-surface p-4 shadow-sm">
+        <p className="mb-1 text-sm font-semibold text-foreground">
+          Ile razy AI sięgało do dokumentacji — ostatnie 30 dni
+        </p>
+        <p className="mb-3 text-xs text-muted">
+          &bdquo;0 rund&rdquo; znaczy, że model odpowiedział od razu, bez czytania stron.
+          Im więcej pytań wielorundowych, tym bardziej opłaca się cache.
+        </p>
+        {stats.toolRounds.length === 0 ? (
+          <p className="text-sm text-muted">
+            Brak danych — pomiar zapisuje się dopiero przy nowych odpowiedziach.
+          </p>
+        ) : (
+          <table className="text-sm">
+            <tbody>
+              {stats.toolRounds.map(({ rounds, count }) => (
+                <tr key={rounds}>
+                  <td className="py-1 pr-4 text-muted">{`${rounds} ${odmianaRund(rounds)}`}</td>
+                  <td className="py-1 pr-4 font-semibold text-foreground">{count}</td>
+                  <td className="py-1 text-muted">
+                    {Math.round((count / stats.measuredAnswers) * 100)}%
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
 
       <div className="rounded border border-border bg-surface p-4 shadow-sm">
