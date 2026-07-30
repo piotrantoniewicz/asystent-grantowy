@@ -16,6 +16,9 @@ const DEFAULT_AI_DOCS_MODE: AiDocsMode = "ondemand";
 // Ustawienia zmieniają się rzadko (tylko z panelu admina), a odczytywane są przy
 // każdym pytaniu. Trzymamy je przez minutę w pamięci serwera, żeby nie odpytywać
 // bazy za każdym razem. Zmiana w panelu czyści pamięć od razu (patrz niżej).
+// Uwaga: na produkcji (wiele instancji serwerless) czyszczenie działa tylko na
+// instancji, która obsłużyła zapis — pozostałe zobaczą zmianę najpóźniej po
+// minucie (TTL).
 const CACHE_TTL_MS = 60_000;
 const settingsCache = new Map<string, { value: string; expiresAt: number }>();
 

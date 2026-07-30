@@ -32,7 +32,13 @@ async function getRobotsRules(origin: string): Promise<RobotsRules> {
   if (!cached) {
     cached = (async () => {
       const result = await safeFetch(`${origin}/robots.txt`, 200_000);
-      if (!result.ok) return { disallow: [] };
+      if (!result.ok) {
+        // Nieudanego pobrania (np. chwilowy timeout) nie zapamiętujemy na stałe —
+        // inaczej „wszystko wolno" zostałoby w pamięci do końca życia instancji.
+        // Bieżący oczekujący i tak dostaną ten wynik, o to chodzi.
+        robotsCache.delete(origin);
+        return { disallow: [] };
+      }
       const text = new TextDecoder().decode(result.body);
       return parseRobotsTxt(text);
     })();

@@ -411,8 +411,27 @@ export async function POST(request: Request) {
 
   const encoder = new TextEncoder();
 
+  // Gdy przeglądarka zerwie połączenie (zamknięta karta, utracony internet),
+  // każda próba wysłania danych rzuca wyjątek. Ta flaga pozwala przestać wysyłać,
+  // a mimo to dokończyć liczenie odpowiedzi i zapisać ją do bazy — użytkownik
+  // po odświeżeniu ma zobaczyć to, za co zapłacił pytaniem.
+  let clientGone = false;
+
   const responseBody = new ReadableStream<Uint8Array>({
+    cancel() {
+      clientGone = true;
+    },
     async start(controller) {
+      function safeEnqueue(data: Uint8Array) {
+        if (clientGone) return;
+        try {
+          controller.enqueue(data);
+        } catch {
+          // Połączenie już zerwane — dalej liczymy odpowiedź, ale nic nie wysyłamy.
+          clientGone = true;
+        }
+      }
+
       let responseText = "";
       let streamedAnything = false;
       // Do logu: „pierwsze zdarzenie" to cokolwiek od modelu (także rozumowanie),
@@ -437,7 +456,7 @@ export async function POST(request: Request) {
       function sendStatusOnce() {
         if (statusSent) return;
         statusSent = true;
-        controller.enqueue(encoder.encode(STATUS_THINKING));
+        safeEnqueue(encoder.encode(STATUS_THINKING));
       }
 
       // Wskaźnik „czytam dokumentację" zapalamy raz na rundę i gasimy, gdy
@@ -448,12 +467,12 @@ export async function POST(request: Request) {
       function sendToolsStatus() {
         if (toolsStatusSent) return;
         toolsStatusSent = true;
-        controller.enqueue(encoder.encode(STATUS_TOOLS));
+        safeEnqueue(encoder.encode(STATUS_TOOLS));
       }
       function sendWritingStatus() {
         if (!toolsStatusSent) return;
         toolsStatusSent = false;
-        controller.enqueue(encoder.encode(STATUS_WRITING));
+        safeEnqueue(encoder.encode(STATUS_WRITING));
       }
 
       try {
@@ -517,7 +536,7 @@ export async function POST(request: Request) {
               }
               streamedAnything = true;
               responseText += event.delta.text;
-              controller.enqueue(encoder.encode(event.delta.text));
+              safeEnqueue(encoder.encode(event.delta.text));
             }
           }
 
@@ -648,7 +667,7 @@ export async function POST(request: Request) {
         }
       } catch (error) {
         if (!streamedAnything) {
-          controller.enqueue(
+          safeEnqueue(
             encoder.encode(
               isAiConfigError(error)
                 ? `${AI_CONFIG_ERROR_MESSAGE} Pytanie wróciło do Twojej puli.`
@@ -659,7 +678,7 @@ export async function POST(request: Request) {
             (refundError) => console.error("Błąd zwrotu pytania:", refundError),
           );
         } else {
-          controller.enqueue(
+          safeEnqueue(
             encoder.encode(
               "\n\n[Odpowiedź została przerwana — możesz zadać pytanie ponownie.]",
             ),
@@ -679,7 +698,11 @@ export async function POST(request: Request) {
         }
         console.error("Błąd streamu czatu:", error);
       } finally {
-        controller.close();
+        try {
+          controller.close();
+        } catch {
+          // Strumień już zamknięty albo anulowany po stronie klienta.
+        }
       }
     },
   });
