@@ -51,3 +51,6 @@ next-env.d.ts
 
 # katalogi robocze Claude Code (worktree)
 .claude/worktrees/
+
+# Wynik ostatniego pomiaru (npm run pomiar:cache) — surowe dane, nie kod
+scripts/wynik-pomiaru-cache.txt

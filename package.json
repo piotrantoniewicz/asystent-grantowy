@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
+    "pomiar:cache": "vitest run --config vitest.pomiar.config.ts",
     "postinstall": "prisma generate"
   },
   "dependencies": {
