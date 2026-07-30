@@ -60,18 +60,46 @@ export async function POST(request: Request) {
     );
   }
 
-  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
-  const recentScrapes = await prisma.scrapedSource.count({
-    where: {
-      createdAt: { gte: oneHourAgo },
-      conversation: { userId },
-    },
-  });
-  if (recentScrapes >= MAX_SCRAPES_PER_HOUR) {
-    return NextResponse.json(
-      { error: "Za dużo analiz stron w krótkim czasie. Odczekaj godzinę." },
-      { status: 429 },
-    );
+  // U10: kopiuj ostatnie udane pobranie tego samego adresu zamiast crawlować
+  // ponownie. Dla organizacji bez ograniczenia czasowego; strona konkursu ma być
+  // w miarę świeża, więc kopiujemy tylko pobrania młodsze niż tydzień — starsze
+  // trafiają do pełnego crawla. Ogłoszenia konkursowe zmieniają się rzadko, a
+  // sam tydzień to zapas przed typowym terminem naboru. Sprawdzamy to PRZED
+  // limitem godzinowym, bo limit chroni cudze serwery przed zalewem zapytań,
+  // a kopia z bazy w ogóle nie wychodzi w internet.
+  const grantReuseCutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const reusableSource = !forceRefresh
+    ? await prisma.scrapedSource.findFirst({
+        where: {
+          kind,
+          rootUrl: safeUrl.toString(),
+          status: "done",
+          conversation: { userId },
+          ...(kind === "grant" ? { createdAt: { gte: grantReuseCutoff } } : {}),
+        },
+        orderBy: { createdAt: "desc" },
+        include: { pages: true },
+      })
+    : null;
+
+  // Limit dotyczy tylko prawdziwych pobrań. Liczymy różne adresy, a nie wpisy:
+  // wczytanie tego samego adresu po raz kolejny to kopia z bazy, więc nie ma
+  // powodu, żeby zjadało pulę.
+  if (!reusableSource) {
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+    const recentRoots = await prisma.scrapedSource.groupBy({
+      by: ["rootUrl"],
+      where: {
+        createdAt: { gte: oneHourAgo },
+        conversation: { userId },
+      },
+    });
+    if (recentRoots.length >= MAX_SCRAPES_PER_HOUR) {
+      return NextResponse.json(
+        { error: "Za dużo analiz stron w krótkim czasie. Odczekaj godzinę." },
+        { status: 429 },
+      );
+    }
   }
 
   const source = await prisma.scrapedSource.create({
@@ -87,25 +115,6 @@ export async function POST(request: Request) {
       };
 
       try {
-        // U10: kopiuj ostatnie udane pobranie tego samego adresu zamiast
-        // crawlować ponownie. Dla organizacji bez ograniczenia czasowego;
-        // strona konkursu ma być świeża, więc kopiujemy tylko pobrania
-        // młodsze niż 24 h — starsze trafiają do pełnego crawla jak dotąd.
-        const grantReuseCutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
-        const reusableSource = !forceRefresh
-          ? await prisma.scrapedSource.findFirst({
-              where: {
-                kind,
-                rootUrl: safeUrl.toString(),
-                status: "done",
-                conversation: { userId },
-                ...(kind === "grant" ? { createdAt: { gte: grantReuseCutoff } } : {}),
-              },
-              orderBy: { createdAt: "desc" },
-              include: { pages: true },
-            })
-          : null;
-
         if (reusableSource) {
           // `createManyAndReturn` zamiast `createMany`, bo do spisu stron
           // (`indexBlob`) potrzebne są identyfikatory świeżo utworzonych wierszy.

@@ -208,7 +208,10 @@ export async function POST(request: Request) {
       prisma.message.create({
         data: { conversationId, role: "user", content: messageText },
       }),
-      isFirstMessage && conversation.title === "Nowa rozmowa"
+      // Pierwsze pytanie zawsze nadaje tytuł — także wtedy, gdy rozmowa dostała
+      // wcześniej tytuł roboczy z analizy konkursu. Rozmowa bez wiadomości nie
+      // ma tytułu nadanego przez użytkownika, więc nie ma czego nadpisać.
+      isFirstMessage
         ? prisma.conversation.update({
             where: { id: conversationId },
             data: { title: messageText.slice(0, 60) },

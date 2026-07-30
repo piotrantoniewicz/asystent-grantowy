@@ -561,13 +561,12 @@ export default function ChatApp({
     const id = activeId ?? (await createConversation());
     // Tytuł nadaje serwer przy pierwszym pytaniu (`chat/route.ts`), ale lista
     // rozmów w menu żyje w stanie przeglądarki — bez tego wpisu zostawała na
-    // „Nowa rozmowa" aż do przeładowania strony. Podmieniamy tylko wtedy, gdy
-    // rozmowa nadal ma tytuł domyślny, żeby nie nadpisać nazwanej rozmowy.
+    // „Nowa rozmowa" (albo na tytule roboczym z analizy konkursu) aż do
+    // przeładowania strony. Tak samo jak serwer podmieniamy tytuł przy
+    // pierwszym pytaniu, bez względu na to, co było wcześniej.
     if (firstMessageTitle) {
       setConversations((prev) =>
-        prev.map((c) =>
-          c.id === id && c.title === "Nowa rozmowa" ? { ...c, title: firstMessageTitle } : c,
-        ),
+        prev.map((c) => (c.id === id ? { ...c, title: firstMessageTitle } : c)),
       );
     }
     return id;
@@ -672,13 +671,20 @@ export default function ChatApp({
     }
   }
 
-  // Klik w zapisaną organizację/konkurs w menu: zaczyna świeżą rozmowę
-  // (a jeśli bieżąca jest pusta — używa jej) i analizuje wybrany adres.
+  // Klik w zapisaną organizację/konkurs w menu: analizuje wybrany adres
+  // w bieżącej rozmowie, dopóki nie padło w niej pytanie — inaczej zaczyna nową.
   async function handleSelectSaved(url: string, kind: ScrapeKind) {
     if (scrapingKinds[kind]) return;
-    const isEmpty = messages.length === 0 && sources.length === 0;
+    // Rozmowa, w której nie padło jeszcze żadne pytanie, jest wciąż „świeża" —
+    // nawet jeśli wczytała się już organizacja. Dokładamy do niej kolejne
+    // źródło, zamiast zakładać drugą rozmowę (inaczej w menu robiły się dwie
+    // pozycje: pusta „Nowa rozmowa" z organizacją i druga z konkursem).
+    // Nową rozmowę zaczynamy dopiero wtedy, gdy padło już pytanie albo gdy
+    // źródło tego samego rodzaju jest już wczytane (np. podmiana konkursu).
     const conversationId =
-      !isEmpty || !activeId ? await createConversation() : activeId;
+      activeId && messages.length === 0 && !sources.some((s) => s.kind === kind)
+        ? activeId
+        : await createConversation();
     setSidebarOpen(false);
     await handleScrape(url, kind, false, conversationId);
   }
