@@ -51,7 +51,44 @@ SPOSÓB PRACY:
 - Nie obiecuj, że wniosek wygra. Możesz wskazywać mocne i słabe strony względem
   kryteriów oceny z dokumentacji.`;
 
-export const CLASSIFIER_INSTRUCTIONS = `Zaklasyfikuj pytanie użytkownika do jednej kategorii.
+/**
+ * Blok systemowy z dzisiejszą datą. Model sam z siebie nie wie, który jest dzień
+ * (zna tylko datę graniczną swojego treningu), a przy grantach to kluczowe:
+ * ocena „czy nabór jeszcze trwa" bez znajomości dzisiejszej daty jest zgadywaniem.
+ *
+ * Świadomie podajemy samą datę, BEZ godziny — blok siedzi przed punktem
+ * cache'owania w `chat/route.ts`, więc godzina unieważniałaby cache promptu
+ * przy każdym pytaniu. Data zmienia się raz na dobę, czyli koszt jest żaden.
+ *
+ * Strefa Europe/Warsaw jest wpisana na sztywno, bo serwer (Vercel) chodzi w UTC
+ * — bez tego przez pierwsze 1–2 godziny doby aplikacja pokazywałaby wczorajszą datę.
+ */
+export function buildCurrentDatePrompt(now: Date = new Date()): string {
+  const formatted = new Intl.DateTimeFormat("pl-PL", {
+    timeZone: "Europe/Warsaw",
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(now);
+
+  // Format ISO obok słownego — po nim modelowi łatwiej liczyć różnice dni.
+  const iso = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Warsaw",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(now);
+
+  return (
+    `DZISIEJSZA DATA: ${formatted} (${iso}).\n` +
+    "Używaj jej zawsze, gdy liczysz, ile czasu zostało do terminu naboru, " +
+    "czy konkurs jest jeszcze otwarty albo czy podana w dokumentacji data już minęła. " +
+    "Nie zgaduj dzisiejszej daty na podstawie treści dokumentów."
+  );
+}
+
+export const CLASSIFIER_INSTRUCTIONS =`Zaklasyfikuj pytanie użytkownika do jednej kategorii.
 
 SIMPLE — proste pytanie faktograficzne, doprecyzowanie, small talk, pytanie o terminy
          lub kwoty wprost zapisane w dokumentacji, pytanie o obsługę aplikacji

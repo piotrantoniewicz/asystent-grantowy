@@ -67,7 +67,10 @@ Minimum dodatkowych bibliotek.
    Wyjątek: instrukcje techniczne zależne od trybu (np. jak używać narzędzi
    w trybie `ondemand`) idą do bloku systemowego składanego w kodzie razem
    z danymi, których dotyczą — inaczej prompt z bazy byłby nieprawdziwy
-   w drugim trybie.
+   w drugim trybie. Tak samo dzisiejsza data (`buildCurrentDatePrompt`
+   w `src/lib/ai/prompts.ts`): zmienia się w czasie, więc nie może być
+   w `AppSetting`. Podajemy samą datę, bez godziny — blok stoi przed punktem
+   cache'owania, a godzina kasowałaby cache promptu przy każdym pytaniu.
 7. Scraper: ochrona przed SSRF wg `06-scraping.md` (blokada adresów prywatnych);
    wykonywany synchronicznie ze strumieniowanym postępem (bez pracy „w tle").
 8. Webhook Stripe: weryfikacja podpisu, idempotencja (z testem automatycznym);
