@@ -110,11 +110,32 @@ dopłaca (w pomiarze: 14–23 tys. tokenów zapisu, z których nikt nie skorzyst
 **Nie zgadywać** — najpierw rozkład, potem wybór.
 
 **Uwaga po zadaniu 8 (31.07):** ta decyzja stała się pilniejsza. Po zmianie
-promptu pytania wracają do **jednej rundy** (pomiar w zadaniu 8: 5 rund → 1),
-a to właśnie przy jednej rundzie cache tylko dopłaca. W zmierzonym przebiegu:
-zapis 7 122 tokenów, odczyt 4 433 — czyli zapłacone 1,25× za coś, z czego
-skorzystano raz. Rozkład z produkcji rozstrzygnie, ale wariant „oznaczaj dopiero
-od drugiej rundy" jest teraz wyraźnie bardziej prawdopodobny niż wczoraj.
+promptu pytanie o konkretny fakt schodzi do **jednej rundy** (pomiar w zadaniu 8:
+5 rund → 1), a to właśnie przy jednej rundzie cache tylko dopłaca. W zmierzonym
+przebiegu: zapis 7 122 tokenów, odczyt 4 433 — czyli zapłacone 1,25× za coś,
+z czego skorzystano raz.
+
+**Obserwacja z produkcji (31.07), ważna dla tej decyzji: cache bloku systemowego
+nie przeżywa przerwy między pytaniami.** Trzy kolejne pytania jednego
+użytkownika, w odstępach kilku minut:
+
+| Godzina | Model | Cache zapis / odczyt na starcie | Rundy |
+|---|---|---|---|
+| 13:05 | Haiku | 5 609 / **0** | 1 |
+| 13:15 | Sonnet | 7 198 / **0** | 2 |
+| 13:17 | Haiku | 5 609 / **0** | 2 |
+
+**Każde pytanie zapisuje spis dokumentacji do cache'u od nowa i żadne nie czyta
+zapisu poprzedniego** — odstępy są dłuższe niż żywotność wpisu. Cache zwraca się
+więc wyłącznie WEWNĄTRZ jednego pytania, przy drugiej i dalszych rundach
+(widać to w rosnącym odczycie: 5 609 → 10 075 → 15 684 w pytaniu z 13:17).
+
+**Co to zmienia, a czego nie zmienia.** Wzmacnia wariant „oznaczaj dopiero od
+drugiej rundy": przy pytaniu jednorundowym dopłata jest pewna, a zysk żaden.
+**Ale to nadal jedna sesja jednego użytkownika**, nie rozkład z ruchu — a przy
+kilku pytaniach pod rząd w krótkich odstępach (realny scenariusz pisania
+wniosku) obraz może być inny. Decyzja bez rozkładu z `/admin` byłaby dokładnie
+tym zgadywaniem, przed którym ostrzega ta sekcja.
 
 ## 3. Czas do pierwszego słowa po rundzie narzędzi (29,6 s!)
 
@@ -137,6 +158,22 @@ to nie ono. Do sprawdzenia:
   szukaj `roundFirstTextMs`);
 - czy dałoby się pokazać użytkownikowi cokolwiek w tym czasie (dziś wisi
   wskaźnik „Czytam dokumentację…", co jest poprawne, ale 30 s to długo).
+
+**To jest teraz największa pozycja czasowa (stan na 31.07).** Po zadaniu 8
+narzędzia przestały być problemem, więc czekanie widać w czystej postaci.
+Produkcyjne pytanie z 13:15 (Sonnet, 62,6 s):
+
+| Pozycja | Czas |
+|---|---|
+| Narzędzia (2 × szukanie + 1 odczyt strony) | ~1,7 s |
+| Przygotowanie promptu w rundzie odpowiedzi | 1,8 s |
+| **Cisza przed pierwszym słowem** | **20,9 s** |
+| Pisanie odpowiedzi (3 429 tokenów) | reszta |
+
+Czyli objaw z 29.07 (29,6 s) utrzymuje się przy **innym pytaniu, innym modelu
+i przygotowaniu promptu poniżej 2 s** — więc nie chodzi o rozmiar promptu.
+Uwaga z listy niżej o tym, że `roundFirstTextMs` może mierzyć coś innego, niż
+sądzimy, pozostaje pierwszą rzeczą do sprawdzenia.
 
 **Nowy, konkretny trop (31.07): funkcje i baza są na dwóch kontynentach.**
 Z logu builda: funkcje działają w `iad1` (Waszyngton), a produkcyjna baza Neona
@@ -457,6 +494,27 @@ należy jej tłumić.
 1 wywołanie narzędzia, **zero `przeczytaj_strone`**, 5 791 znaków z narzędzi,
 **8 143 ms**. Zgodne z pomiarem lokalnym (8 617 ms) — czyli wynik nie był
 artefaktem środowiska deweloperskiego.
+
+**Doprecyzowanie: „5 rund → 1" dotyczy pytań o KONKRETNY FAKT.** Kolejne dwa
+pytania z produkcji pokazały drugi, równie poprawny wzorzec:
+
+| Pytanie | Model | Rundy | Narzędzia | Znaki | Czas |
+|---|---|---|---|---|---|
+| termin ogłoszenia wyników | Haiku | 1 | 1 × szukanie | 5 791 | 8,1 s |
+| wymagane załączniki | Haiku | 2 | szukanie + 1 odczyt strony | 36 088 | 15,5 s |
+| obszary i warunki uczestnictwa | Sonnet | 2 | 2 × szukanie + 1 odczyt | 41 891 | 62,6 s |
+
+Przy pytaniu o **listę albo zakres** model dalej czyta całą stronę — bo fragment
+na 1000 znaków nie pomieści całej listy załączników. **To jest zachowanie
+zaprojektowane** („czytaj, gdy fragmenty nie wystarczają"), nie nawrót usterki.
+Rozstrzyga to, że **żadne z tych pytań nie dobiło do `LIMIT`** (36 i 42 tys.
+wobec progu 60 tys.) — budżet ma zapas, którego wcześniej nie było.
+
+**Trafność wszystkich trzech odpowiedzi potwierdzona przez właściciela.** To
+zamyka warunek postawiony wyżej („jedyną wiarygodną oceną jest przeczytanie
+kilku odpowiedzi") — trzy pytania różnego typu, w tym o listę dokumentów, bez
+utraty konkretów. Wariant awaryjny („zostaw czytanie, podnieś budżet") można
+uznać za niepotrzebny.
 
 **Drugie pytanie tego samego dnia** (Sonnet, trudniejsze): 1 runda, dwa
 wyszukiwania naraz, 11 971 znaków z narzędzi, zero `przeczytaj_strone`, 18,4 s.
