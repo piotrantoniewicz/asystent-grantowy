@@ -10,8 +10,8 @@ describe("buildCurrentDatePrompt", () => {
   });
 
   it("liczy datę w strefie Europe/Warsaw, a nie w UTC", () => {
-    // 23:30 czasu polskiego = 21:30 UTC — w UTC to wciąż ten sam dzień,
-    // ale odwrotny przypadek (00:30 w Polsce) w UTC byłby jeszcze wczoraj.
+    // 22:30 UTC 30 lipca = 00:30 czasu polskiego 31 lipca (UTC+2).
+    // Bez strefy Europe/Warsaw funkcja pokazałaby wczorajszą datę.
     const text = buildCurrentDatePrompt(new Date("2026-07-30T22:30:00Z"));
 
     expect(text).toContain("2026-07-31");

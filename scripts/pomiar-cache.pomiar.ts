@@ -24,6 +24,7 @@ import type Anthropic from "@anthropic-ai/sdk";
 import { anthropic, MODEL_COMPLEX, MODEL_SIMPLE } from "@/lib/ai/client";
 import { markToolResultsForCache } from "@/lib/ai/cache";
 import { assembleSourceIndex, buildSourceIndex } from "@/lib/ai/context";
+import { buildCurrentDatePrompt } from "@/lib/ai/prompts";
 import {
   DOCS_TOOLS,
   buildDocsToolContext,
@@ -102,6 +103,7 @@ function buildSystemBlocks(systemPrompt: string, indexText: string) {
         "opieraj się na samej notatce z podsumowania.",
       cache_control: { type: "ephemeral" as const },
     },
+    { type: "text" as const, text: buildCurrentDatePrompt() },
   ] satisfies Anthropic.TextBlockParam[];
 }
 

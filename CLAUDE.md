@@ -69,8 +69,10 @@ Minimum dodatkowych bibliotek.
    z danymi, których dotyczą — inaczej prompt z bazy byłby nieprawdziwy
    w drugim trybie. Tak samo dzisiejsza data (`buildCurrentDatePrompt`
    w `src/lib/ai/prompts.ts`): zmienia się w czasie, więc nie może być
-   w `AppSetting`. Podajemy samą datę, bez godziny — blok stoi przed punktem
-   cache'owania, a godzina kasowałaby cache promptu przy każdym pytaniu.
+   w `AppSetting`. Podajemy samą datę, bez godziny; blok z datą stoi ZA punktem
+   cache'owania (bloki po znaczniku `cache_control` nie wpływają na cache),
+   a w trybie bez dokumentacji — przed punktem na pytaniu, gdzie godzina
+   kasowałaby cache przy każdym pytaniu.
 7. Scraper: ochrona przed SSRF wg `06-scraping.md` (blokada adresów prywatnych);
    wykonywany synchronicznie ze strumieniowanym postępem (bez pracy „w tle").
 8. Webhook Stripe: weryfikacja podpisu, idempotencja (z testem automatycznym);

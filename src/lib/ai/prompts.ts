@@ -51,34 +51,39 @@ SPOSÓB PRACY:
 - Nie obiecuj, że wniosek wygra. Możesz wskazywać mocne i słabe strony względem
   kryteriów oceny z dokumentacji.`;
 
+const PL_DATE_FORMAT = new Intl.DateTimeFormat("pl-PL", {
+  timeZone: "Europe/Warsaw",
+  weekday: "long",
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+});
+
+// Format ISO obok słownego — po nim modelowi łatwiej liczyć różnice dni.
+const ISO_DATE_FORMAT = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "Europe/Warsaw",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+
 /**
  * Blok systemowy z dzisiejszą datą. Model sam z siebie nie wie, który jest dzień
  * (zna tylko datę graniczną swojego treningu), a przy grantach to kluczowe:
  * ocena „czy nabór jeszcze trwa" bez znajomości dzisiejszej daty jest zgadywaniem.
  *
- * Świadomie podajemy samą datę, BEZ godziny — blok siedzi przed punktem
- * cache'owania w `chat/route.ts`, więc godzina unieważniałaby cache promptu
- * przy każdym pytaniu. Data zmienia się raz na dobę, czyli koszt jest żaden.
+ * Świadomie podajemy samą datę, BEZ godziny. W trybie bez dokumentacji punkt
+ * cache'owania stoi na pytaniu użytkownika, więc blok z godziną unieważniałby
+ * tam cache przy każdym pytaniu; sama godzina i tak nie jest do niczego
+ * potrzebna. W trybach z dokumentacją blok stoi ZA punktem cache'owania
+ * i na cache nie wpływa wcale (patrz komentarz w `chat/route.ts`).
  *
  * Strefa Europe/Warsaw jest wpisana na sztywno, bo serwer (Vercel) chodzi w UTC
  * — bez tego przez pierwsze 1–2 godziny doby aplikacja pokazywałaby wczorajszą datę.
  */
 export function buildCurrentDatePrompt(now: Date = new Date()): string {
-  const formatted = new Intl.DateTimeFormat("pl-PL", {
-    timeZone: "Europe/Warsaw",
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  }).format(now);
-
-  // Format ISO obok słownego — po nim modelowi łatwiej liczyć różnice dni.
-  const iso = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Europe/Warsaw",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(now);
+  const formatted = PL_DATE_FORMAT.format(now);
+  const iso = ISO_DATE_FORMAT.format(now);
 
   return (
     `DZISIEJSZA DATA: ${formatted} (${iso}).\n` +
@@ -88,7 +93,7 @@ export function buildCurrentDatePrompt(now: Date = new Date()): string {
   );
 }
 
-export const CLASSIFIER_INSTRUCTIONS =`Zaklasyfikuj pytanie użytkownika do jednej kategorii.
+export const CLASSIFIER_INSTRUCTIONS = `Zaklasyfikuj pytanie użytkownika do jednej kategorii.
 
 SIMPLE — proste pytanie faktograficzne, doprecyzowanie, small talk, pytanie o terminy
          lub kwoty wprost zapisane w dokumentacji, pytanie o obsługę aplikacji

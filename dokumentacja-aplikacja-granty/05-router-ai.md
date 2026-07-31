@@ -100,11 +100,14 @@ Prompt systemowy sam w sobie jest poniżej minimalnego progu cache'owania
 (1024–2048 tokenów zależnie od modelu) — `cache_control` realnie zaczyna działać
 dopiero, gdy w kontekście jest dokumentacja.
 
-Kolejność bloków w zapytaniu (stałe → zmienne, inaczej cache nie działa):
+Kolejność bloków w zapytaniu (stałe → zmienne; cache to dopasowanie prefiksu
+do znacznika `cache_control`, więc bloki ZA znacznikiem na cache nie wpływają):
 1. Prompt systemowy (stały w ramach rozmowy)
-2. Treści zeskrapowane (stałe w ramach rozmowy) ← tu `cache_control`
-3. Historia wiadomości (rośnie)
-4. Nowe pytanie
+2. Treści zeskrapowane / spis dokumentacji (stałe w ramach rozmowy) ← tu `cache_control`
+3. Dzisiejsza data (`buildCurrentDatePrompt`) — zmienia się raz na dobę,
+   dlatego stoi ZA punktem cache'owania: nie unieważnia cache'u dokumentacji
+4. Historia wiadomości (rośnie)
+5. Nowe pytanie
 
 ## Obsługa błędów API
 
