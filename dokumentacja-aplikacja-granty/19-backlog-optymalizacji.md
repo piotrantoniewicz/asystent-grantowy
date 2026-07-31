@@ -138,6 +138,31 @@ to nie ono. Do sprawdzenia:
 - czy dałoby się pokazać użytkownikowi cokolwiek w tym czasie (dziś wisi
   wskaźnik „Czytam dokumentację…", co jest poprawne, ale 30 s to długo).
 
+**Nowy, konkretny trop (31.07): funkcje i baza są na dwóch kontynentach.**
+Z logu builda: funkcje działają w `iad1` (Waszyngton), a produkcyjna baza Neona
+stoi w regionie **`eu-central-1`** (Frankfurt) — pełny adres jest w zmiennych
+środowiskowych na Vercelu, nie wpisujemy go tutaj, bo repozytorium jest
+publiczne. Każde zapytanie do bazy przelatuje więc przez Atlantyk. Ile to
+kosztuje, widać w produkcyjnym logu po zadaniu 8:
+
+| Pozycja | Czas |
+|---|---|
+| `baza` (wczytanie rozmowy i dokumentacji) | 1 146 ms |
+| `szukaj_w_dokumentacji` (3 zapytania równolegle) | 577 ms |
+| **razem baza** | **~1 720 ms z 8 143 ms całości (21%)** |
+
+**Uwaga, żeby nie powtórzyć starego błędu:** to jest korelacja, nie pomiar
+efektu. Nie wiadomo, ile z tych 1 720 ms to sieć, a ile praca bazy. Zanim
+cokolwiek przenosić, trzeba to rozdzielić — najprościej porównując ten sam
+zestaw zapytań z funkcji w `iad1` i w `fra1`. Wariantów jest dwa (przenieść
+funkcje do Frankfurtu albo bazę do Wirginii) i oba mają skutki poza latencją
+(m.in. gdzie leżą dane osobowe użytkowników — to pytanie prawne, nie tylko
+techniczne). **Nie zmieniać bez decyzji właściciela.**
+
+Uwaga poboczna: dotychczasowe pomiary „lokalnie baza jest szybka" były
+bezwartościowe w drugą stronę — `.env.local` wskazuje na inną instancję Neona
+(`us-east-1`), więc z Polski też leci przez Atlantyk.
+
 ## 4. Długość odpowiedzi (~24 s pisania)
 
 Sonnet napisał 4047 tokenów (4127 znaków). To druga co do wielkości pozycja
@@ -427,6 +452,11 @@ sprawdzić samodzielnie.
 „termin może ulec zmianie"). Poprawna data nie jest tym samym co pełny obraz.
 Dlatego to właśnie ta samodzielna adnotacja modelu jest tu wartością i nie
 należy jej tłumić.
+
+**Potwierdzone na produkcji** (31.07, deploy `8487162`, Haiku): 1 runda,
+1 wywołanie narzędzia, **zero `przeczytaj_strone`**, 5 791 znaków z narzędzi,
+**8 143 ms**. Zgodne z pomiarem lokalnym (8 617 ms) — czyli wynik nie był
+artefaktem środowiska deweloperskiego.
 
 **Drugie pytanie tego samego dnia** (Sonnet, trudniejsze): 1 runda, dwa
 wyszukiwania naraz, 11 971 znaków z narzędzi, zero `przeczytaj_strone`, 18,4 s.
