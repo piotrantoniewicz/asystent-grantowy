@@ -46,6 +46,7 @@ export async function POST(request: Request) {
 
   const MAX_SOURCES_PER_CONVERSATION = 5;
   const MAX_SCRAPES_PER_HOUR = 10;
+  const MAX_TOTAL_SOURCES_PER_HOUR = 30;
 
   const sourcesInConversation = await prisma.scrapedSource.count({
     where: { conversationId },
@@ -57,6 +58,21 @@ export async function POST(request: Request) {
           "W tej rozmowie można przeanalizować maksymalnie 5 stron. Zacznij nową rozmowę.",
       },
       { status: 400 },
+    );
+  }
+
+  // Kopia z bazy nie rusza internetu, ale nie jest darmowa: czyta i zapisuje
+  // w bazie wszystkie strony źródła. Ten łagodniejszy limit ogranicza więc
+  // WSZYSTKIE analizy (pobrania i kopie), żeby zapętlone żądania nie rozdęły
+  // bazy. Właściwy, ostrzejszy limit prawdziwych pobrań jest niżej.
+  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+  const recentTotal = await prisma.scrapedSource.count({
+    where: { createdAt: { gte: oneHourAgo }, conversation: { userId } },
+  });
+  if (recentTotal >= MAX_TOTAL_SOURCES_PER_HOUR) {
+    return NextResponse.json(
+      { error: "Za dużo analiz stron w krótkim czasie. Odczekaj godzinę." },
+      { status: 429 },
     );
   }
 
@@ -82,19 +98,18 @@ export async function POST(request: Request) {
       })
     : null;
 
-  // Limit dotyczy tylko prawdziwych pobrań. Liczymy różne adresy, a nie wpisy:
-  // wczytanie tego samego adresu po raz kolejny to kopia z bazy, więc nie ma
-  // powodu, żeby zjadało pulę.
+  // Limit dotyczy tylko prawdziwych pobrań z internetu. Kopie z bazy mają
+  // wasCrawled=false i nie zjadają puli; za to każde „odśwież" i każda nieudana
+  // próba liczy się normalnie — to one obciążają cudze serwery.
   if (!reusableSource) {
-    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
-    const recentRoots = await prisma.scrapedSource.groupBy({
-      by: ["rootUrl"],
+    const recentCrawls = await prisma.scrapedSource.count({
       where: {
         createdAt: { gte: oneHourAgo },
         conversation: { userId },
+        wasCrawled: true,
       },
     });
-    if (recentRoots.length >= MAX_SCRAPES_PER_HOUR) {
+    if (recentCrawls >= MAX_SCRAPES_PER_HOUR) {
       return NextResponse.json(
         { error: "Za dużo analiz stron w krótkim czasie. Odczekaj godzinę." },
         { status: 429 },
@@ -103,15 +118,35 @@ export async function POST(request: Request) {
   }
 
   const source = await prisma.scrapedSource.create({
-    data: { conversationId, kind, rootUrl: safeUrl.toString(), status: "pending" },
+    data: {
+      conversationId,
+      kind,
+      rootUrl: safeUrl.toString(),
+      status: "pending",
+      wasCrawled: !reusableSource,
+    },
   });
 
   const encoder = new TextEncoder();
 
+  // Gdy przeglądarka zerwie połączenie w trakcie analizy, każda próba wysłania
+  // postępu rzuca wyjątek. Ta flaga pozwala przestać wysyłać, a mimo to dokończyć
+  // crawl i zapisać strony do bazy — po odświeżeniu użytkownik ma zobaczyć wynik.
+  let clientGone = false;
+
   const responseBody = new ReadableStream<Uint8Array>({
+    cancel() {
+      clientGone = true;
+    },
     async start(controller) {
       const send = (data: object) => {
-        controller.enqueue(encoder.encode(`${JSON.stringify(data)}\n`));
+        if (clientGone) return;
+        try {
+          controller.enqueue(encoder.encode(`${JSON.stringify(data)}\n`));
+        } catch {
+          // Połączenie już zerwane — dalej crawlujemy, ale nic nie wysyłamy.
+          clientGone = true;
+        }
       };
 
       try {
@@ -254,7 +289,13 @@ export async function POST(request: Request) {
             : "Wystąpił błąd podczas pobierania strony. Spróbuj ponownie.",
         });
       } finally {
-        controller.close();
+        if (!clientGone) {
+          try {
+            controller.close();
+          } catch {
+            // Strumień już zamknięty — nie ma czego zamykać.
+          }
+        }
       }
     },
   });

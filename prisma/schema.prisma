@@ -135,6 +135,10 @@ model ScrapedSource {
   // model dobiera sobie narzędziami. Puste dla źródeł sprzed tej zmiany —
   // wtedy `chat/route.ts` składa spis w locie i uzupełnia w tle.
   indexBlob      String?
+  // Czy ten wiersz powstał z prawdziwego pobrania z internetu (true), czy jest
+  // kopią wcześniejszego pobrania z bazy (false). Limit godzinowy liczy tylko
+  // prawdziwe pobrania — patrz /api/scrape.
+  wasCrawled     Boolean             @default(false)
   createdAt      DateTime            @default(now())
 
   conversation Conversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)

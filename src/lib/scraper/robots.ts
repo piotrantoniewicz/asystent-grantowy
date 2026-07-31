@@ -31,16 +31,29 @@ async function getRobotsRules(origin: string): Promise<RobotsRules> {
   let cached = robotsCache.get(origin);
   if (!cached) {
     cached = (async () => {
-      const result = await safeFetch(`${origin}/robots.txt`, 200_000);
-      if (!result.ok) {
-        // Nieudanego pobrania (np. chwilowy timeout) nie zapamiętujemy na stałe —
-        // inaczej „wszystko wolno" zostałoby w pamięci do końca życia instancji.
-        // Bieżący oczekujący i tak dostaną ten wynik, o to chodzi.
+      try {
+        const result = await safeFetch(`${origin}/robots.txt`, 200_000);
+        if (!result.ok) {
+          // Odpowiedź 4xx (najczęściej 404 — strona nie ma robots.txt) jest
+          // ostateczna: zapamiętujemy „wszystko wolno" na stałe, żeby nie pytać
+          // o robots.txt przy każdej podstronie. Błąd chwilowy (timeout, 5xx)
+          // usuwamy z cache — bieżący oczekujący i tak dostaną ten wynik, ale
+          // następny crawl spróbuje na świeżo.
+          const definitive = result.status !== undefined && result.status < 500;
+          if (!definitive) {
+            robotsCache.delete(origin);
+          }
+          return { disallow: [] };
+        }
+        const text = new TextDecoder().decode(result.body);
+        return parseRobotsTxt(text);
+      } catch {
+        // Niespodziewany wyjątek traktujemy jak błąd chwilowy: nie zostawiamy
+        // w cache odrzuconej obietnicy, bo zatruwałaby domenę do końca życia
+        // instancji.
         robotsCache.delete(origin);
         return { disallow: [] };
       }
-      const text = new TextDecoder().decode(result.body);
-      return parseRobotsTxt(text);
     })();
     robotsCache.set(origin, cached);
   }

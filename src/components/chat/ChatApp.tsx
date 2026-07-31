@@ -415,6 +415,11 @@ export default function ChatApp({
   // przeczytać), nie ściągamy go na siłę na dół przy każdej nowej literce.
   const stickToBottomRef = useRef(true);
   const autoScrapedForRef = useRef<string | null>(null);
+  // Tworzenie rozmowy w locie. Gdy dwa miejsca naraz potrzebują nowej rozmowy
+  // (np. automatyczna analiza organizacji i klik w zapisany konkurs), drugie ma
+  // dołączyć do pierwszego POST-a zamiast tworzyć drugą rozmowę — inaczej w menu
+  // robią się dwie pozycje.
+  const conversationCreationRef = useRef<Promise<string> | null>(null);
 
   function scrollToBottom(smooth: boolean) {
     const el = scrollAreaRef.current;
@@ -519,13 +524,22 @@ export default function ChatApp({
   // Tworzy nową rozmowę: POST, dopisanie na początek listy, ustawienie jako
   // aktywnej i wyczyszczenie widoku wiadomości/źródeł. Zwraca id nowej rozmowy.
   async function createConversation(): Promise<string> {
-    const res = await fetch("/api/conversations", { method: "POST" });
-    const conversation = await res.json();
-    setConversations((prev) => [conversation, ...prev]);
-    setActiveId(conversation.id);
-    setMessages([]);
-    setSources([]);
-    return conversation.id;
+    if (conversationCreationRef.current) return conversationCreationRef.current;
+    const creation = (async () => {
+      const res = await fetch("/api/conversations", { method: "POST" });
+      const conversation = await res.json();
+      setConversations((prev) => [conversation, ...prev]);
+      setActiveId(conversation.id);
+      setMessages([]);
+      setSources([]);
+      return conversation.id as string;
+    })();
+    conversationCreationRef.current = creation;
+    try {
+      return await creation;
+    } finally {
+      conversationCreationRef.current = null;
+    }
   }
 
   // Świadomie NIE zakłada rozmowy w bazie — czyści tylko ekran. Pusty wpis
@@ -682,7 +696,7 @@ export default function ChatApp({
     // Nową rozmowę zaczynamy dopiero wtedy, gdy padło już pytanie albo gdy
     // źródło tego samego rodzaju jest już wczytane (np. podmiana konkursu).
     const conversationId =
-      activeId && messages.length === 0 && !sources.some((s) => s.kind === kind)
+      activeId && !loadError && messages.length === 0 && !sources.some((s) => s.kind === kind)
         ? activeId
         : await createConversation();
     setSidebarOpen(false);
@@ -710,6 +724,10 @@ export default function ChatApp({
   async function handleSend() {
     const text = input.trim();
     if (!text || isSending) return;
+    // Historia rozmowy się nie wczytała — nie wiemy, co w niej jest, więc nie
+    // wysyłamy (pusta lista wiadomości NIE znaczy tu „nowa rozmowa"). Baner
+    // loadError już mówi użytkownikowi, żeby odświeżył stronę.
+    if (loadError) return;
 
     if (looksLikeBareUrl(text)) {
       const hasOrganization = sources.some((s) => s.kind === "organization");

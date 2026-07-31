@@ -45,6 +45,8 @@ export type SafeFetchResult = {
 export type SafeFetchError = {
   ok: false;
   error: string;
+  // Kod HTTP, jeśli serwer w ogóle odpowiedział (np. 404); brak = błąd sieci.
+  status?: number;
 };
 
 /**
@@ -92,12 +94,20 @@ export async function safeFetch(
           if (!location) {
             return { ok: false, error: "Przekierowanie bez adresu docelowego." };
           }
-          currentUrl = new URL(location, url).toString();
+          try {
+            currentUrl = new URL(location, url).toString();
+          } catch {
+            return { ok: false, error: "Przekierowanie na nieprawidłowy adres." };
+          }
           continue;
         }
 
         if (!response.ok) {
-          return { ok: false, error: `Strona zwróciła błąd HTTP ${response.status}.` };
+          return {
+            ok: false,
+            error: `Strona zwróciła błąd HTTP ${response.status}.`,
+            status: response.status,
+          };
         }
 
         const contentLength = response.headers.get("content-length");
