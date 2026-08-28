@@ -48,10 +48,20 @@ export async function POST(request: Request) {
   const MAX_SCRAPES_PER_HOUR = 10;
   const MAX_TOTAL_SOURCES_PER_HOUR = 30;
 
-  const sourcesInConversation = await prisma.scrapedSource.count({
+  // Limit dotyczy liczby RÓŻNYCH stron w rozmowie, nie liczby analiz. Ponowna
+  // analiza adresu już wcześniej analizowanego w tej rozmowie (przycisk
+  // „odśwież", wklejenie tego samego adresu, kopia z bazy) nie zajmuje nowego
+  // miejsca w puli i jest zawsze dozwolona. Blokujemy tylko DOPISANIE nowego
+  // adresu, gdy w rozmowie jest już 5 różnych.
+  const existingSources = await prisma.scrapedSource.findMany({
     where: { conversationId },
+    select: { kind: true, rootUrl: true },
+    distinct: ["kind", "rootUrl"],
   });
-  if (sourcesInConversation >= MAX_SOURCES_PER_CONVERSATION) {
+  const isAlreadyInConversation = existingSources.some(
+    (s) => s.kind === kind && s.rootUrl === safeUrl.toString(),
+  );
+  if (!isAlreadyInConversation && existingSources.length >= MAX_SOURCES_PER_CONVERSATION) {
     return NextResponse.json(
       {
         error:

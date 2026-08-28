@@ -102,6 +102,14 @@ if (recentScrapes >= MAX_SCRAPES_PER_HOUR) {
 }
 ```
 
+**Aktualizacja 2026-08-29:** licznik `sourcesInConversation` powyżej liczył
+KAŻDĄ analizę (w tym odświeżenia i kopie z cache tego samego adresu), więc
+1 organizacja + 1 konkurs odświeżane kilka razy potrafiły wyczerpać pulę 5.
+Poprawione w kodzie: limit liczy teraz różne adresy (`kind` + `rootUrl`)
+w rozmowie; ponowna analiza już znanego w niej adresu nie zajmuje nowego
+miejsca. Fragment kodu wyżej to zapis pierwotnej instrukcji audytu — dla
+aktualnej logiki patrz `src/app/api/scrape/route.ts`.
+
 ---
 
 ### P3. Zawyżone ceny modelu w statystykach admina
