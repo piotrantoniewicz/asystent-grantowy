@@ -7,6 +7,10 @@ pisać wnioski o granty. Pełna dokumentacja: folder `dokumentacja-aplikacja-gra
 — **przeczytaj odpowiednie pliki przed każdym zadaniem**, a plan budowy realizuj
 etapami wg `11-plan-pracy.md`.
 
+Next.js 16 ma zmiany łamiące kompatybilność względem danych treningowych modeli
+(API, konwencje, struktura plików) — przed pisaniem kodu sprawdź odpowiedni
+przewodnik w `node_modules/next/dist/docs/` (patrz `AGENTS.md`).
+
 ## O właścicielu projektu
 
 Właściciel NIE jest programistą. Zawsze:
@@ -17,7 +21,7 @@ Właściciel NIE jest programistą. Zawsze:
 
 ## Stack (wiążący — nie zmieniać bez zgody)
 
-Next.js 15+ (App Router) + TypeScript, Tailwind CSS, Prisma + PostgreSQL (Neon,
+Next.js 16 (App Router) + TypeScript, Tailwind CSS, Prisma + PostgreSQL (Neon,
 także lokalnie — od Etapu 3.5), Auth.js (magic link przez Resend), Anthropic SDK
 (`@anthropic-ai/sdk`), Stripe Checkout, scraping: cheerio + `unpdf`.
 Minimum dodatkowych bibliotek.
@@ -76,14 +80,19 @@ Minimum dodatkowych bibliotek.
 7. Scraper: ochrona przed SSRF wg `06-scraping.md` (blokada adresów prywatnych);
    wykonywany synchronicznie ze strumieniowanym postępem (bez pracy „w tle").
 8. Webhook Stripe: weryfikacja podpisu, idempotencja (z testem automatycznym);
-   pytania dolicza tylko webhook. Middleware nie może przekierowywać `/api/*`.
+   pytania dolicza tylko webhook. Proxy (`src/proxy.ts`, zastępuje dawny
+   `middleware.ts`) nie może przekierowywać `/api/*`.
 9. Interfejs użytkownika po polsku; komunikaty błędów czytelne dla laika.
 10. Po zakończeniu etapu: zaproponuj zapis w gicie (commit) z opisem po polsku.
 
 ## Komendy
 
 - `npm run dev` — uruchomienie lokalne (http://localhost:3000)
-- `npm test` — testy automatyczne (vitest)
+- `npm test` — testy automatyczne (vitest); `webhook.test.ts` jest znanym
+  czerwonym testem, chyba że nazwa bazy zawiera „test" — to nie regresja
+- `npm run pomiar:cache` — osobny pomiar oszczędności prompt cache; wywołuje
+  płatne API Anthropic i trwa minuty, celowo poza `npm test`; uruchamiaj po
+  zmianach w pętli narzędzi w `chat/route.ts`
 - `npx prisma migrate dev` — migracja bazy po zmianie schematu
 - `npx prisma studio` — podgląd bazy w przeglądarce
 - `stripe listen --forward-to localhost:3000/api/stripe/webhook` — webhooki lokalnie
