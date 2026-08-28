@@ -204,7 +204,9 @@ async function runOnce(params: {
     messages.push({ role: "user", content: toolResults });
 
     // JEDYNA różnica między porównywanymi przebiegami.
-    if (params.cacheToolResults) markToolResultsForCache(messages);
+    // `toolRounds` jest już podniesione — to numer rundy, której wyniki właśnie
+    // dopisaliśmy. Jak w `chat/route.ts`: znacznik dopiero od drugiej rundy.
+    if (params.cacheToolResults) markToolResultsForCache(messages, toolRounds);
 
     if (params.stopAfterFirstRound) break;
 

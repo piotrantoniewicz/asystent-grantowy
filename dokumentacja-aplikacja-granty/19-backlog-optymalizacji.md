@@ -69,6 +69,14 @@ czyli mechanizm działa tak, jak zaprojektowany.
 
 ## 2. Decyzja: czy oznaczać cache już od pierwszej rundy
 
+**Aktualizacja 2026-08-29 — ZDECYDOWANE I WDROŻONE:** wybrany wariant
+„oznaczaj dopiero od drugiej rundy". Powód: po poprawce z zadania 8 pytania
+kończą się zwykle na jednej rundzie, więc dopłata 1,25× za zapis do cache
+w rundzie 1 nie ma po stronie odczytu żadnego zysku. `markToolResultsForCache`
+przyjmuje teraz numer rundy i stawia znacznik od rundy 2 wzwyż (kasowanie
+starych znaczników działa jak dotąd, w każdej rundzie). Ta sama zmiana
+w `scripts/pomiar-cache.pomiar.ts`.
+
 **Problem:** zapis do cache kosztuje 1,25× ceny wejścia. Przy pytaniu
 **jednorundowym** płacimy tę dopłatę bez żadnego odczytu — przy 31 tys. tokenów
 zapisu (pomiar 17:17) to ok. **6 groszy na pytanie**. Przy wielorundowym

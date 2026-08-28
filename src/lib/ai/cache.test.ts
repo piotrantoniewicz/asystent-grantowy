@@ -27,26 +27,39 @@ function cacheMarkedIds(messages: Anthropic.MessageParam[]): string[] {
 }
 
 describe("markToolResultsForCache", () => {
-  it("stawia znacznik na ostatnim wyniku narzędzia", () => {
+  it("w pierwszej rundzie NIE stawia znacznika (zapis do cache bez odczytu)", () => {
     const messages: Anthropic.MessageParam[] = [
       { role: "user", content: "Do kiedy nabór?" },
       toolResults("a", "b"),
     ];
 
-    markToolResultsForCache(messages);
+    markToolResultsForCache(messages, 1);
 
-    expect(cacheMarkedIds(messages)).toEqual(["b"]);
+    expect(cacheMarkedIds(messages)).toEqual([]);
+  });
+
+  it("stawia znacznik na ostatnim wyniku narzędzia od drugiej rundy", () => {
+    const messages: Anthropic.MessageParam[] = [
+      { role: "user", content: "Do kiedy nabór?" },
+      toolResults("a"),
+    ];
+    markToolResultsForCache(messages, 1);
+
+    messages.push(toolResults("b", "c"));
+    markToolResultsForCache(messages, 2);
+
+    expect(cacheMarkedIds(messages)).toEqual(["c"]);
   });
 
   it("zostawia dokładnie jeden znacznik po kolejnych rundach", () => {
     const messages: Anthropic.MessageParam[] = [toolResults("a")];
-    markToolResultsForCache(messages);
+    markToolResultsForCache(messages, 1);
 
     messages.push(toolResults("b"));
-    markToolResultsForCache(messages);
+    markToolResultsForCache(messages, 2);
 
     messages.push(toolResults("c"));
-    markToolResultsForCache(messages);
+    markToolResultsForCache(messages, 3);
 
     // Limit API to 4 znaczniki na zapytanie; jeden zajmuje blok systemowy,
     // więc w wiadomościach musi zostać najwyżej jeden — ten najnowszy.
@@ -59,12 +72,24 @@ describe("markToolResultsForCache", () => {
       { role: "user", content: "A ile wynosi wkład własny?" },
     ];
 
-    markToolResultsForCache(messages);
+    markToolResultsForCache(messages, 2);
+
+    expect(cacheMarkedIds(messages)).toEqual([]);
+  });
+
+  it("kasuje stary znacznik nawet wtedy, gdy nowego nie stawia", () => {
+    const messages: Anthropic.MessageParam[] = [toolResults("a")];
+    markToolResultsForCache(messages, 2);
+    expect(cacheMarkedIds(messages)).toEqual(["a"]);
+
+    // Runda 1 nowej odpowiedzi: znacznika nie stawiamy, ale stary musi zniknąć.
+    messages.push(toolResults("b"));
+    markToolResultsForCache(messages, 1);
 
     expect(cacheMarkedIds(messages)).toEqual([]);
   });
 
   it("nie wywraca się na pustej liście wiadomości", () => {
-    expect(() => markToolResultsForCache([])).not.toThrow();
+    expect(() => markToolResultsForCache([], 2)).not.toThrow();
   });
 });
