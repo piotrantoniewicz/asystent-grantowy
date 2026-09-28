@@ -14,10 +14,13 @@ Karty z liczbami (dane z `GET /api/admin/stats`):
 - Zadane pytania: łącznie / w 30 dni
 - Przychód: łącznie / w 30 dni (z opłaconych `Purchase`)
 - **Szacowany koszt AI** (USD): liczony z zapisanych tokenów × cennik modeli
-  (Haiku 4.5: $1/$5 za 1M tokenów wejście/wyjście; Sonnet 5: $5/$25;
+  (Haiku 4.5: $1/$5 za 1M tokenów wejście/wyjście; Sonnet 5.5: $2/$10 — tyle samo
+  co Sonnet 5, którego nazwę mają starsze odpowiedzi w bazie; cennik sprawdzony
+  2026-09-28;
   tokeny z cache liczyć ×0,1 dla odczytu)
 - Podział pytań na modele (ile poszło do Haiku, ile do Sonneta) — kontrola,
-  czy router działa sensownie
+  czy router działa sensownie; licznik Sonneta sumuje wszystkie wersje
+  (`claude-sonnet-5` i `claude-sonnet-5-5`)
 - Prosty wykres: pytania dziennie z ostatnich 30 dni
 
 Ta zakładka odpowiada na kluczowe pytanie biznesowe: **czy pakiet 25 zł pokrywa

@@ -32,6 +32,12 @@ function odmianaRund(n: number) {
 export default async function AdminDashboardPage() {
   const stats = await getAdminStats();
 
+  // Liczymy wszystkie wersje Sonneta razem (`claude-sonnet-5` ze starszych
+  // odpowiedzi i `claude-sonnet-5-5` z nowych).
+  const sonnetCount = Object.entries(stats.modelUsage)
+    .filter(([model]) => model.startsWith("claude-sonnet"))
+    .reduce((sum, [, count]) => sum + count, 0);
+
   const maxDaily = Math.max(1, ...stats.dailyQuestions.map((d) => d.count));
 
   const sekundy = (ms: number | null) =>
@@ -62,7 +68,7 @@ export default async function AdminDashboardPage() {
         />
         <StatCard
           label="Haiku / Sonnet"
-          value={`${stats.modelUsage["claude-haiku-4-5"] ?? 0} / ${stats.modelUsage["claude-sonnet-5"] ?? 0}`}
+          value={`${stats.modelUsage["claude-haiku-4-5"] ?? 0} / ${sonnetCount}`}
           sub="podział odpowiedzi na model"
         />
         <StatCard

@@ -1,6 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { describe, expect, it, vi } from "vitest";
-import { isAiConfigError } from "./client";
+import { isAiConfigError, MODEL_COMPLEX, MODEL_SIMPLE, reasoningParams } from "./client";
 
 // Buduje błąd taki, jaki zwraca SDK Anthropic przy danym kodzie HTTP.
 function apiError(status: number) {
@@ -29,5 +29,35 @@ describe("isAiConfigError", () => {
   it("nie uznaje zwykłych błędów (np. bazy danych) za błąd ustawień AI", () => {
     expect(isAiConfigError(new Error("połączenie z bazą zerwane"))).toBe(false);
     expect(isAiConfigError(null)).toBe(false);
+  });
+});
+
+describe("reasoningParams", () => {
+  it("Sonnet bez rozumowania: between_tools + effort medium", () => {
+    expect(reasoningParams(MODEL_COMPLEX, false)).toEqual({
+      thinking: { type: "between_tools" },
+      output_config: { effort: "medium" },
+    });
+  });
+
+  it("Sonnet z rozumowaniem (AI_THINKING=on): adaptive + ten sam effort", () => {
+    expect(reasoningParams(MODEL_COMPLEX, true)).toEqual({
+      thinking: { type: "adaptive" },
+      output_config: { effort: "medium" },
+    });
+  });
+
+  it("Haiku: bez effort i bez between_tools — jak przed migracją", () => {
+    expect(reasoningParams(MODEL_SIMPLE, false)).toEqual({
+      thinking: { type: "disabled" },
+    });
+  });
+
+  it("Sonnet nigdy nie dostaje thinking: disabled (na 5.5 to błąd 400)", () => {
+    for (const useThinking of [true, false]) {
+      expect(reasoningParams(MODEL_COMPLEX, useThinking).thinking).not.toEqual({
+        type: "disabled",
+      });
+    }
   });
 });

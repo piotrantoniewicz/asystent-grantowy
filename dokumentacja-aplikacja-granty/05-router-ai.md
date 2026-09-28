@@ -6,14 +6,19 @@ Każde pytanie użytkownika trafia najpierw do routera, który decyduje, czy wys
 tani, szybki model, czy potrzebny jest model najmocniejszy. Dzięki temu proste pytania
 kosztują grosze, a pełną moc płacimy tylko przy pisaniu wniosku.
 
-## Modele (Anthropic API — stan na lipiec 2026)
+## Modele (Anthropic API — stan na wrzesień 2026)
 
 | Rola | Model | ID modelu | Cena wejście / wyjście (za 1M tokenów) |
 |---|---|---|---|
 | Tani — proste pytania, klasyfikacja | Claude Haiku 4.5 | `claude-haiku-4-5` | $1 / $5 |
-| Mocny — pisanie wniosku, analiza dokumentacji | Claude Sonnet 5 | `claude-sonnet-5` | $5 / $25 |
+| Mocny — pisanie wniosku, analiza dokumentacji | Claude Sonnet 5.5 | `claude-sonnet-5-5` | $2 / $10 |
 
-Używać **oficjalnego SDK** `@anthropic-ai/sdk`. ID modeli wpisywać dokładnie jak
+Ceny z oficjalnego cennika Anthropic, sprawdzone 2026-09-28. Do września 2026 mocnym
+modelem był Sonnet 5 (`claude-sonnet-5`, obecnie też $2 / $10) — starsze odpowiedzi
+w bazie mają tę nazwę w `Message.modelUsed`, więc cennik panelu admina zna obie.
+Migracja: `20-migracja-sonnet-5-5.md`.
+
+Używać **oficjalnego SDK** `@anthropic-ai/sdk` (od migracji na Sonnet 5.5 wersja co najmniej 0.129 — starsze nie znają typu `between_tools`). ID modeli wpisywać dokładnie jak
 wyżej (bez dopisków dat).
 
 ## Zasada nadrzędna: rozmowa z dokumentacją = zawsze Sonnet
@@ -57,7 +62,7 @@ odpowiedź).
 | Klasa | Model | Parametry |
 |---|---|---|
 | SIMPLE | `claude-haiku-4-5` | `max_tokens: 2048` |
-| COMPLEX | `claude-sonnet-5` | `max_tokens: 32000` (pytanie wytwórcze) albo `4096` (faktograficzne), streaming, **bez `thinking`** |
+| COMPLEX | `claude-sonnet-5-5` | `max_tokens: 32000` (pytanie wytwórcze) albo `4096` (faktograficzne), streaming, **bez rozumowania**: `thinking: {type: "between_tools"}` + `output_config.effort: "medium"` |
 
 Oba wywołania dostają **ten sam pełny kontekst**: prompt systemowy + zeskrapowane
 treści + historia rozmowy.
@@ -83,6 +88,29 @@ Sterowanie w `src/lib/ai/router.ts`:
 
 Szczegóły i pomiary: `17-koszty-i-latencja.md`.
 
+### Jak „wyłączone” wygląda w zapytaniu (od migracji na Sonnet 5.5)
+
+Parametr rozumowania wysyłamy **zawsze** — na Sonnecie 5.5 jego pominięcie oznacza
+rozumowanie włączone. Wybiera go jedna funkcja, `reasoningParams(model, useThinking)`
+w `src/lib/ai/client.ts`, używana w każdej rundzie pętli narzędzi:
+
+| Model | Rozumowanie wyłączone (norma) | Rozumowanie włączone (`AI_THINKING=on`) |
+|---|---|---|
+| Sonnet 5.5 | `thinking: {type: "between_tools"}` + `output_config.effort: "medium"` | `thinking: {type: "adaptive"}` + `effort: "medium"` |
+| Haiku 4.5 | `thinking: {type: "disabled"}`, bez `effort` | — (Haiku nie dostaje pytań z rozumowaniem) |
+
+Zasady wynikające z API Sonneta 5.5:
+
+- `thinking: {type: "disabled"}` zwraca błąd 400 — najniższe ustawienie to
+  `between_tools`: brak rozumowania przed odpowiedzią, ale model **może** krótko
+  pomyśleć między wywołaniami narzędzi (płatne jak tokeny wyjściowe),
+- przy `between_tools` `effort` jest obowiązkowy i tylko `low` / `medium` / `high`;
+  wybrany `medium` (decyzja właściciela 2026-09-28 — poziom zalecany do pracy
+  z narzędziami); effortu nie wolno zmieniać w trakcie rozmowy,
+- bez `temperature`, `top_p`, `top_k`, wymuszania narzędzia (`tool_choice` `any`/`tool`)
+  i wypełniania odpowiedzi modelu z góry — każde z nich to błąd 400,
+- bloki `thinking` z pętli narzędzi oddajemy modelowi w niezmienionej postaci.
+
 ## Prompt caching — obowiązkowy
 
 Kontekst rozmowy jest duży (dokumentacja konkursu!). Na ostatnim bloku stałej części
@@ -96,9 +124,9 @@ Efekt: pierwsze pytanie w rozmowie płaci pełną cenę za wczytanie dokumentacj
 kolejne ok. 10% tej ceny. **Uwaga:** cache jest osobny dla każdego modelu — dlatego
 klasyfikator celowo NIE dostaje pełnej dokumentacji, a rozmowy z dokumentacją
 w ogóle nie używają Haiku do odpowiedzi (zasada nadrzędna na górze pliku).
-Prompt systemowy sam w sobie jest poniżej minimalnego progu cache'owania
-(1024–2048 tokenów zależnie od modelu) — `cache_control` realnie zaczyna działać
-dopiero, gdy w kontekście jest dokumentacja.
+Minimalny próg cache'owania zależy od modelu — na Sonnecie 5.5 to 512 tokenów
+(wcześniej 1024–2048), więc sam prompt systemowy może się już łapać do cache;
+najwięcej `cache_control` daje jednak wtedy, gdy w kontekście jest dokumentacja.
 
 Kolejność bloków w zapytaniu (stałe → zmienne; cache to dopasowanie prefiksu
 do znacznika `cache_control`, więc bloki ZA znacznikiem na cache nie wpływają):

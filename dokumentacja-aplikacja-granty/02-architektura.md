@@ -8,7 +8,7 @@
 | Baza danych | **PostgreSQL (Neon, darmowy plan) — od Etapu 3.5 także lokalnie** | Jedna baza od startu do produkcji; historia migracji Prisma zależy od typu bazy, więc późna zmiana SQLite→Postgres byłaby bolesna (start projektu był na SQLite — porzucone w Etapie 3.5) |
 | ORM | **Prisma** | Czytelny schemat bazy, migracje, dobre wsparcie w narzędziach AI |
 | Logowanie | **Auth.js (NextAuth v5), provider e-mail (magic link)** | Bez haseł; wysyłka maili przez **Resend** (darmowy plan wystarczy na start) |
-| AI | **Anthropic API, oficjalny SDK `@anthropic-ai/sdk`** | Router modeli: Haiku 4.5 / Sonnet 5 — szczegóły w `05-router-ai.md` |
+| AI | **Anthropic API, oficjalny SDK `@anthropic-ai/sdk`** | Router modeli: Haiku 4.5 / Sonnet 5.5 — szczegóły w `05-router-ai.md` |
 | Scraping | **fetch + cheerio** (HTML), **unpdf** (PDF) | Bez zewnętrznych usług płatnych; `unpdf` zamiast nieutrzymywanego `pdf-parse`; szczegóły w `06-scraping.md` |
 | Płatności | **Stripe Checkout + webhooki** | BLIK, Google Pay, karty, Przelewy24 — szczegóły w `08-platnosci.md` |
 | Style | **Tailwind CSS** | Szybkie odwzorowanie projektu graficznego, który dostarczy właściciel |

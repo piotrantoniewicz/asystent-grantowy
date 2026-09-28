@@ -39,13 +39,14 @@ organizacjom pozarządowym pisać wnioski o granty. Dokumentacja jest przygotowa
 | `17-koszty-i-latencja.md` | Instrukcja: obniżenie kosztów AI i czasu odpowiedzi (Etap 1 — szybkie oszczędności, Etap 2 — dokumentacja czytana na żądanie) |
 | `18-zrownoleglenie-i-haiku.md` | Instrukcja: równoległe zapytania do bazy (Etap A) i Haiku dla pytań wyszukujących (Etap B) |
 | `19-backlog-optymalizacji.md` | **Co jeszcze do zrobienia** w kosztach i czasie odpowiedzi — stan po sesji pomiarowej 2026-07-29 |
+| `20-migracja-sonnet-5-5.md` | Instrukcja: przejście z Sonneta 5 na Sonnet 5.5 z wyłączonym rozumowaniem (`between_tools` + `effort: medium`), SDK, cennik panelu |
 | `CLAUDE-md-szablon.md` | Szablon pliku CLAUDE.md do głównego folderu projektu |
 
 ## Najważniejsze decyzje (podjęte 2026-07-11)
 
 - **Logowanie:** e-mailem, przez link logujący (magic link), bez haseł.
 - **Model płatności:** pakiety pytań (od 25 zł), płatność jednorazowa przez Stripe.
-- **Modele AI:** Anthropic Claude — Haiku 4.5 (proste pytania), Sonnet 5 (pisanie wniosku).
+- **Modele AI:** Anthropic Claude — Haiku 4.5 (proste pytania), Sonnet 5.5 (pisanie wniosku; do 2026-09 Sonnet 5).
 - **Historia rozmów:** zapisywana — użytkownik może wrócić do pracy nad wnioskiem.
 - **Limit darmowy:** 10 pytań na konto.
 - **Praca:** najpierw wszystko lokalnie na komputerze; wdrożenie na serwer później.

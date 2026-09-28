@@ -107,9 +107,12 @@ Idempotentny — ponowne dostarczenie tego samego zdarzenia nic nie zmienia.
   "totalQuestions": 0, "questionsLast30Days": 0,
   "revenuePlnTotal": 0, "revenuePlnLast30Days": 0,
   "estimatedAiCostUsd": 0.0,
-  "modelUsage": { "claude-haiku-4-5": 0, "claude-sonnet-5": 0 }
+  "modelUsage": { "claude-haiku-4-5": 0, "claude-sonnet-5-5": 0, "claude-sonnet-5": 0 }
 }
 ```
+Klucze `modelUsage` to nazwy modeli zapisane w `Message.modelUsed`. Odpowiedzi sprzed
+migracji na Sonnet 5.5 (2026-09) mają `claude-sonnet-5` — klucz pojawia się tylko,
+jeśli takie wiersze są w bazie.
 
 ### `GET /api/admin/settings` / `PUT /api/admin/settings`
 Odczyt i zapis ustawień (`system_prompt`, `free_questions_limit`).

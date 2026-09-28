@@ -21,7 +21,7 @@ import path from "node:path";
 import { describe, it } from "vitest";
 import type Anthropic from "@anthropic-ai/sdk";
 
-import { anthropic, MODEL_COMPLEX, MODEL_SIMPLE } from "@/lib/ai/client";
+import { anthropic, MODEL_COMPLEX, MODEL_SIMPLE, reasoningParams } from "@/lib/ai/client";
 import { markToolResultsForCache } from "@/lib/ai/cache";
 import { assembleSourceIndex, buildSourceIndex } from "@/lib/ai/context";
 import { buildCurrentDatePrompt } from "@/lib/ai/prompts";
@@ -138,6 +138,8 @@ async function runOnce(params: {
     system: params.systemBlocks,
     messages,
     tools: DOCS_TOOLS,
+    // Te same parametry rozumowania co na produkcji (na 5.5 brak parametru = rozumowanie włączone).
+    ...reasoningParams(MODEL, false),
   });
   let roundStartedAt = startedAt;
 
@@ -217,6 +219,7 @@ async function runOnce(params: {
       system: params.systemBlocks,
       messages,
       ...(limitReached ? {} : { tools: DOCS_TOOLS }),
+      ...reasoningParams(MODEL, false),
     });
   }
 

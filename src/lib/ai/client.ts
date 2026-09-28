@@ -21,7 +21,41 @@ if (process.env.NODE_ENV !== "production") {
 }
 
 export const MODEL_SIMPLE = "claude-haiku-4-5";
-export const MODEL_COMPLEX = "claude-sonnet-5";
+export const MODEL_COMPLEX = "claude-sonnet-5-5";
+
+/**
+ * Wysiłek Sonneta 5.5 (`output_config.effort`). Decyzja właściciela z 2026-09-28:
+ * `medium` — dokumentacja Anthropic poleca go do pracy z narzędziami, a tryb
+ * z dokumentacją to właśnie narzędzia. Dozwolone przy `between_tools`: low / medium /
+ * high (`xhigh` i `max` zwracają 400). Nie zmieniać w trakcie rozmowy.
+ */
+export const SONNET_EFFORT = "medium" as const;
+
+/**
+ * Parametry rozumowania do `messages.stream` / `messages.create`.
+ *
+ * Sonnet 5.5 nie ma `thinking: disabled` (400). Najniższe ustawienie to
+ * `between_tools`: bez rozumowania przed odpowiedzią, choć model może krótko
+ * pomyśleć między wywołaniami narzędzi. Wymaga jawnego `effort`.
+ *
+ * Haiku 4.5 nie obsługuje `effort` ani `between_tools` — dostaje to samo co
+ * przed migracją: `disabled`.
+ *
+ * Ta sama funkcja musi obsłużyć KAŻDĄ rundę pętli narzędzi — parametry
+ * nie mogą się zmieniać w trakcie jednej odpowiedzi.
+ */
+export function reasoningParams(
+  model: string,
+  useThinking: boolean,
+): Pick<Anthropic.MessageStreamParams, "thinking" | "output_config"> {
+  if (model !== MODEL_COMPLEX) {
+    return { thinking: { type: "disabled" } };
+  }
+  return {
+    thinking: useThinking ? { type: "adaptive" } : { type: "between_tools" },
+    output_config: { effort: SONNET_EFFORT },
+  };
+}
 
 // Komunikat pokazywany użytkownikowi, gdy usługa AI odmawia z powodu ustawień
 // (zły/wygasły klucz API, brak uprawnień, nieznany model) — czyli czegoś, co

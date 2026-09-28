@@ -1,9 +1,11 @@
 import { prisma } from "@/lib/db";
 
-// Ceny standardowe; do 2026-08-31 Sonnet 5 ma cenę wprowadzającą 2/10 USD za MTok.
+// Ceny z oficjalnego cennika Anthropic, sprawdzone 2026-09-28.
+// `claude-sonnet-5` zostaje: starsze odpowiedzi w bazie mają tę nazwę w `modelUsed`.
 const PRICING_USD_PER_MTOK: Record<string, { input: number; output: number }> = {
   "claude-haiku-4-5": { input: 1, output: 5 },
-  "claude-sonnet-5": { input: 3, output: 15 },
+  "claude-sonnet-5": { input: 2, output: 10 },
+  "claude-sonnet-5-5": { input: 2, output: 10 },
 };
 
 // 1.25 odpowiada domyślnemu cache'owi 5-minutowemu ustawionemu w

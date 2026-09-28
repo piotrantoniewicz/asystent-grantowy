@@ -16,6 +16,7 @@ import {
   isAiConfigError,
   MODEL_COMPLEX,
   MODEL_SIMPLE,
+  reasoningParams,
 } from "@/lib/ai/client";
 import {
   assembleScrapedContext,
@@ -324,10 +325,12 @@ export async function POST(request: Request) {
     // Rozumowanie tylko tam, gdzie pomaga (patrz `needsDeepThinking` — dziś
     // wyłączone na stałe decyzją właściciela z 2026-07-28).
     //
-    // WAŻNE: „wyłączone" znaczy, że w zapytaniu jawnie wysyłamy
-    // `thinking: { type: "disabled" }`. Samo POMINIĘCIE tego parametru NIE
-    // wyłącza rozumowania — Sonnet 5 domyślnie rozumuje (tryb adaptacyjny),
-    // więc wcześniejszy kod płacił za rozumowanie mimo `useThinking === false`.
+    // WAŻNE: „wyłączone" trzeba wysłać w zapytaniu wprost — na Sonnecie 5.5
+    // to `thinking: { type: "between_tools" }` + `effort`, na Haiku
+    // `thinking: { type: "disabled" }`. Szczegóły w `reasoningParams`
+    // (`src/lib/ai/client.ts`). Samo POMINIĘCIE parametru NIE wyłącza
+    // rozumowania — na 5.5 model domyślnie rozumuje, więc wcześniejszy kod
+    // płacił za rozumowanie mimo `useThinking === false`.
     useThinking = modelClass === "COMPLEX" && needsDeepThinking(messageText);
 
     // Limit długości odpowiedzi zależy od charakteru pytania, a NIE od rozumowania —
@@ -419,10 +422,9 @@ export async function POST(request: Request) {
       system: systemBlocks,
       messages,
       ...(docsToolContext ? { tools: DOCS_TOOLS } : {}),
-      // Parametr jest ZAWSZE wysyłany — patrz komentarz przy `useThinking`.
-      thinking: useThinking
-        ? { type: "adaptive" as const }
-        : { type: "disabled" as const },
+      // Parametry rozumowania są ZAWSZE wysyłane, zależnie od modelu — patrz
+      // `reasoningParams` w `client.ts` i komentarz przy `useThinking`.
+      ...reasoningParams(model, useThinking),
     });
 
     // Zapytanie do AI już poszło — teraz upewniamy się, że zapis pytania się udał.
@@ -660,10 +662,9 @@ export async function POST(request: Request) {
             // Po wyczerpaniu limitu odbieramy narzędzia — model ma odpowiedzieć
             // na podstawie tego, co już przeczytał, a nie prosić o kolejne strony.
             ...(limitReached ? {} : { tools: DOCS_TOOLS }),
-            // Jak wyżej: „bez rozumowania" trzeba wysłać wprost.
-            thinking: useThinking
-              ? { type: "adaptive" as const }
-              : { type: "disabled" as const },
+            // Jak wyżej: dokładnie te same parametry co w pierwszej rundzie
+            // (effort nie może się zmieniać w trakcie odpowiedzi).
+            ...reasoningParams(model, useThinking),
           });
         }
 
