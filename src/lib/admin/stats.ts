@@ -1,18 +1,27 @@
 import { prisma } from "@/lib/db";
 
-// Ceny z oficjalnego cennika Anthropic, sprawdzone 2026-09-28.
-// `claude-sonnet-5` zostaje: starsze odpowiedzi w bazie mają tę nazwę w `modelUsed`.
-const PRICING_USD_PER_MTOK: Record<string, { input: number; output: number }> = {
-  "claude-haiku-4-5": { input: 1, output: 5 },
-  "claude-sonnet-5": { input: 2, output: 10 },
-  "claude-sonnet-5-5": { input: 2, output: 10 },
+// Ceny z oficjalnego cennika Anthropic, sprawdzone 2026-10-08.
+// Starsze nazwy (`claude-sonnet-5`, `claude-haiku-4-5`) zostają: dawne odpowiedzi
+// w bazie mają je w `modelUsed`.
+// `cacheRead` to mnożnik ceny wejścia przy odczycie z cache — różny dla modeli
+// (Sonnet 5.5: 0,05×, pozostałe 0,1×).
+// Haiku 5.5 ma dwa cenniki: do 100 tys. tokenów w prompcie (tu) i drożej powyżej
+// ($0,50 / $2,50). Haiku dostaje tylko mały prompt (tryb `ondemand`, zasada 5
+// w CLAUDE.md), więc liczymy po tańszym.
+const PRICING_USD_PER_MTOK: Record<
+  string,
+  { input: number; output: number; cacheRead: number }
+> = {
+  "claude-haiku-4-5": { input: 1, output: 5, cacheRead: 0.1 },
+  "claude-haiku-5-5": { input: 0.1, output: 0.5, cacheRead: 0.1 },
+  "claude-sonnet-5": { input: 2, output: 10, cacheRead: 0.1 },
+  "claude-sonnet-5-5": { input: 2, output: 10, cacheRead: 0.05 },
 };
 
 // 1.25 odpowiada domyślnemu cache'owi 5-minutowemu ustawionemu w
 // `src/app/api/chat/route.ts`. Gdyby tam wrócił `ttl: "1h"`, tutaj musi być 2.0 —
 // inaczej panel zaniża koszt zapisów do cache o ~60%.
 const CACHE_WRITE_MULTIPLIER = 1.25;
-const CACHE_READ_MULTIPLIER = 0.1;
 
 export type AdminStats = {
   totalUsers: number;
@@ -111,7 +120,7 @@ export async function getAdminStats(): Promise<AdminStats> {
     const billedInputTokens =
       (row._sum.inputTokens ?? 0) +
       (row._sum.cacheCreationInputTokens ?? 0) * CACHE_WRITE_MULTIPLIER +
-      (row._sum.cacheReadInputTokens ?? 0) * CACHE_READ_MULTIPLIER;
+      (row._sum.cacheReadInputTokens ?? 0) * pricing.cacheRead;
 
     estimatedAiCostUsd +=
       (billedInputTokens * pricing.input) / 1_000_000 +

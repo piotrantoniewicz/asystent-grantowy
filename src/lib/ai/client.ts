@@ -20,7 +20,7 @@ if (process.env.NODE_ENV !== "production") {
   globalForAnthropic.anthropicApiKey = apiKey;
 }
 
-export const MODEL_SIMPLE = "claude-haiku-4-5";
+export const MODEL_SIMPLE = "claude-haiku-5-5";
 export const MODEL_COMPLEX = "claude-sonnet-5-5";
 
 /**
@@ -32,14 +32,25 @@ export const MODEL_COMPLEX = "claude-sonnet-5-5";
 export const SONNET_EFFORT = "medium" as const;
 
 /**
+ * Wysiłek Haiku 5.5 (migracja z Haiku 4.5, 2026-10-08). `medium` to domyślna
+ * wartość tego modelu — podajemy ją wprost, żeby nie zależeć od domyślnych
+ * ustawień API. `low` jest tańszy, ale dokumentacja Anthropic ostrzega, że przy
+ * dłuższym prompcie model częściej pomija wyszukiwanie — a w trybie `ondemand`
+ * Haiku odpowiada właśnie po przeszukaniu dokumentacji (zasada 5b w CLAUDE.md).
+ */
+export const HAIKU_EFFORT = "medium" as const;
+
+/**
  * Parametry rozumowania do `messages.stream` / `messages.create`.
  *
  * Sonnet 5.5 nie ma `thinking: disabled` (400). Najniższe ustawienie to
  * `between_tools`: bez rozumowania przed odpowiedzią, choć model może krótko
  * pomyśleć między wywołaniami narzędzi. Wymaga jawnego `effort`.
  *
- * Haiku 4.5 nie obsługuje `effort` ani `between_tools` — dostaje to samo co
- * przed migracją: `disabled`.
+ * Haiku 5.5 domyślnie rozumuje (jak Sonnet 5.5), więc wyłączenie trzeba wysłać
+ * wprost: `disabled` (dozwolone przy effort low/medium/high; `between_tools`
+ * to błąd 400 — ma go tylko Sonnet 5.5). Bez tego klasyfikator z `max_tokens: 20`
+ * zużyłby limit na rozumowanie i nie zwrócił odpowiedzi.
  *
  * Ta sama funkcja musi obsłużyć KAŻDĄ rundę pętli narzędzi — parametry
  * nie mogą się zmieniać w trakcie jednej odpowiedzi.
@@ -47,9 +58,12 @@ export const SONNET_EFFORT = "medium" as const;
 export function reasoningParams(
   model: string,
   useThinking: boolean,
-): Pick<Anthropic.MessageStreamParams, "thinking" | "output_config"> {
+): Pick<Anthropic.MessageCreateParams, "thinking" | "output_config"> {
   if (model !== MODEL_COMPLEX) {
-    return { thinking: { type: "disabled" } };
+    return {
+      thinking: { type: "disabled" },
+      output_config: { effort: HAIKU_EFFORT },
+    };
   }
   return {
     thinking: useThinking ? { type: "adaptive" } : { type: "between_tools" },

@@ -1,5 +1,5 @@
 import { jsonSchemaOutputFormat } from "@anthropic-ai/sdk/helpers/json-schema";
-import { anthropic, MODEL_SIMPLE } from "./client";
+import { anthropic, MODEL_SIMPLE, reasoningParams } from "./client";
 import { CLASSIFIER_INSTRUCTIONS } from "./prompts";
 
 export type ModelClass = "SIMPLE" | "COMPLEX";
@@ -183,7 +183,7 @@ const LOOKUP_MAX_CHARS = 200;
  * Czy pytanie jest „wyszukujące" — model ma znaleźć fakt w dokumentacji konkursu
  * (termin naboru, kwota, lista załączników, kto może składać wniosek).
  *
- * Takie pytania mogą iść na Haiku (3× taniej). Analiza kwalifikowalności
+ * Takie pytania mogą iść na Haiku (Haiku 5.5: ~20× taniej od Sonneta 5.5). Analiza kwalifikowalności
  * i pisanie treści wniosku zostają na Sonnecie — patrz zasada 5 w `CLAUDE.md`.
  *
  * Świadomie BEZ osobnego wywołania AI: klasyfikator (`classifyQuestion`) dokłada
@@ -249,9 +249,15 @@ export async function classifyQuestion(
       )
       .join("\n");
 
+    const reasoning = reasoningParams(MODEL_SIMPLE, false);
     const message = await anthropic.messages.parse({
       model: MODEL_SIMPLE,
-      max_tokens: 20,
+      // Odpowiedź to ~10 tokenów JSON-u. Zapas, bo Haiku 5.5 ma nowszy
+      // tokenizer (ten sam tekst ≈ 30% więcej tokenów niż na Haiku 4.5).
+      max_tokens: 50,
+      // Rozumowanie wyłączone wprost — na Haiku 5.5 jest domyślnie włączone
+      // i przy tak małym `max_tokens` zabrałoby miejsce na odpowiedź.
+      thinking: reasoning.thinking,
       messages: [
         {
           role: "user",
@@ -260,7 +266,7 @@ export async function classifyQuestion(
           }\n\nPytanie: ${question}`,
         },
       ],
-      output_config: { format: classificationFormat },
+      output_config: { ...reasoning.output_config, format: classificationFormat },
     });
 
     return message.parsed_output?.category === "SIMPLE" ? "SIMPLE" : "COMPLEX";

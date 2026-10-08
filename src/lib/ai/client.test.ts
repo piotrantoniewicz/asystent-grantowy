@@ -47,9 +47,18 @@ describe("reasoningParams", () => {
     });
   });
 
-  it("Haiku: bez effort i bez between_tools — jak przed migracją", () => {
-    expect(reasoningParams(MODEL_SIMPLE, false)).toEqual({
-      thinking: { type: "disabled" },
+  it("Haiku 5.5: rozumowanie wyłączone wprost + effort medium", () => {
+    for (const useThinking of [true, false]) {
+      expect(reasoningParams(MODEL_SIMPLE, useThinking)).toEqual({
+        thinking: { type: "disabled" },
+        output_config: { effort: "medium" },
+      });
+    }
+  });
+
+  it("Haiku nigdy nie dostaje between_tools (na Haiku 5.5 to błąd 400)", () => {
+    expect(reasoningParams(MODEL_SIMPLE, false).thinking).not.toEqual({
+      type: "between_tools",
     });
   });
 

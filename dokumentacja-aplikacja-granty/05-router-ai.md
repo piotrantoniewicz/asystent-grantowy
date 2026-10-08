@@ -6,14 +6,14 @@ Każde pytanie użytkownika trafia najpierw do routera, który decyduje, czy wys
 tani, szybki model, czy potrzebny jest model najmocniejszy. Dzięki temu proste pytania
 kosztują grosze, a pełną moc płacimy tylko przy pisaniu wniosku.
 
-## Modele (Anthropic API — stan na wrzesień 2026)
+## Modele (Anthropic API — stan na październik 2026)
 
 | Rola | Model | ID modelu | Cena wejście / wyjście (za 1M tokenów) |
 |---|---|---|---|
-| Tani — proste pytania, klasyfikacja | Claude Haiku 4.5 | `claude-haiku-4-5` | $1 / $5 |
+| Tani — proste pytania, klasyfikacja | Claude Haiku 5.5 | `claude-haiku-5-5` | $0,10 / $0,50 (prompt do 100 tys. tokenów; powyżej $0,50 / $2,50) |
 | Mocny — pisanie wniosku, analiza dokumentacji | Claude Sonnet 5.5 | `claude-sonnet-5-5` | $2 / $10 |
 
-Ceny z oficjalnego cennika Anthropic, sprawdzone 2026-09-28. Do września 2026 mocnym
+Ceny z oficjalnego cennika Anthropic, sprawdzone 2026-10-08 (Haiku 5.5 zastąpił Haiku 4.5 — $1 / $5 — tego dnia). Do września 2026 mocnym
 modelem był Sonnet 5 (`claude-sonnet-5`, obecnie też $2 / $10) — starsze odpowiedzi
 w bazie mają tę nazwę w `Message.modelUsed`, więc cennik panelu admina zna obie.
 Migracja: `20-migracja-sonnet-5-5.md`.
@@ -35,7 +35,7 @@ tylko w rozmowach **bez** dokumentacji, gdzie kontekst jest mały i tani.
 
 ### Krok 1: klasyfikacja pytania (zawsze Haiku, ~200 tokenów, ułamek grosza)
 
-Przed właściwą odpowiedzią wysyłamy do `claude-haiku-4-5` krótkie zapytanie
+Przed właściwą odpowiedzią wysyłamy do `claude-haiku-5-5` krótkie zapytanie
 klasyfikujące — tylko pytanie użytkownika + ostatnie 2–3 wiadomości dla
 kontekstu, **każda przycięta do 500 znaków** (długie odpowiedzi asystenta,
 np. całe pole wniosku, niepotrzebnie podbijałyby koszt i czas klasyfikacji):
@@ -61,7 +61,7 @@ odpowiedź).
 
 | Klasa | Model | Parametry |
 |---|---|---|
-| SIMPLE | `claude-haiku-4-5` | `max_tokens: 2048` |
+| SIMPLE | `claude-haiku-5-5` | `max_tokens: 2048`, bez rozumowania: `thinking: {type: "disabled"}` + `output_config.effort: "medium"` |
 | COMPLEX | `claude-sonnet-5-5` | `max_tokens: 32000` (pytanie wytwórcze) albo `4096` (faktograficzne), streaming, **bez rozumowania**: `thinking: {type: "between_tools"}` + `output_config.effort: "medium"` |
 
 Oba wywołania dostają **ten sam pełny kontekst**: prompt systemowy + zeskrapowane
@@ -97,7 +97,7 @@ w `src/lib/ai/client.ts`, używana w każdej rundzie pętli narzędzi:
 | Model | Rozumowanie wyłączone (norma) | Rozumowanie włączone (`AI_THINKING=on`) |
 |---|---|---|
 | Sonnet 5.5 | `thinking: {type: "between_tools"}` + `output_config.effort: "medium"` | `thinking: {type: "adaptive"}` + `effort: "medium"` |
-| Haiku 4.5 | `thinking: {type: "disabled"}`, bez `effort` | — (Haiku nie dostaje pytań z rozumowaniem) |
+| Haiku 5.5 | `thinking: {type: "disabled"}` + `output_config.effort: "medium"` (`between_tools` to na Haiku błąd 400) | — (Haiku nie dostaje pytań z rozumowaniem) |
 
 Zasady wynikające z API Sonneta 5.5:
 

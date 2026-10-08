@@ -38,6 +38,12 @@ export default async function AdminDashboardPage() {
     .filter(([model]) => model.startsWith("claude-sonnet"))
     .reduce((sum, [, count]) => sum + count, 0);
 
+  // Tak samo Haiku (`claude-haiku-4-5` ze starszych odpowiedzi, `claude-haiku-5-5`
+  // z nowych).
+  const haikuCount = Object.entries(stats.modelUsage)
+    .filter(([model]) => model.startsWith("claude-haiku"))
+    .reduce((sum, [, count]) => sum + count, 0);
+
   const maxDaily = Math.max(1, ...stats.dailyQuestions.map((d) => d.count));
 
   const sekundy = (ms: number | null) =>
@@ -68,7 +74,7 @@ export default async function AdminDashboardPage() {
         />
         <StatCard
           label="Haiku / Sonnet"
-          value={`${stats.modelUsage["claude-haiku-4-5"] ?? 0} / ${sonnetCount}`}
+          value={`${haikuCount} / ${sonnetCount}`}
           sub="podział odpowiedzi na model"
         />
         <StatCard

@@ -1,4 +1,4 @@
-import { anthropic, MODEL_SIMPLE } from "@/lib/ai/client";
+import { anthropic, MODEL_SIMPLE, reasoningParams } from "@/lib/ai/client";
 import { SCRAPE_SUMMARY_PROMPT } from "@/lib/ai/prompts";
 import type { ScrapeKind } from "./crawl";
 
@@ -14,6 +14,8 @@ export async function summarizeScrape(
   const message = await anthropic.messages.create({
     model: MODEL_SIMPLE,
     max_tokens: 1024,
+    // Haiku 5.5 bez tego rozumowałby domyślnie i zjadał limit `max_tokens`.
+    ...reasoningParams(MODEL_SIMPLE, false),
     messages: [
       {
         role: "user",

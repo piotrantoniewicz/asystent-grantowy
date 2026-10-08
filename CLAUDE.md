@@ -39,10 +39,12 @@ Minimum dodatkowych bibliotek.
 4. Uprawnienia admina wyłącznie z `ADMIN_EMAILS` (w bazie nie ma pola `isAdmin`);
    nie-admini dostają na `/admin` i `/api/admin/*` — 404.
 5. Modele AI: router wg `dokumentacja-aplikacja-granty/05-router-ai.md`
-   (`claude-haiku-4-5` / `claude-sonnet-5-5`); prompt caching obowiązkowy.
+   (`claude-haiku-5-5` / `claude-sonnet-5-5`); prompt caching obowiązkowy.
    Rozumowanie na Sonnecie 5.5 wyłączamy przez `thinking: {type: "between_tools"}`
-   + `output_config.effort: "medium"` — `disabled` zwraca tam błąd 400, a Haiku
-   nie obsługuje `effort`. Parametry wybiera wyłącznie `reasoningParams()`
+   + `output_config.effort: "medium"` — `disabled` zwraca tam błąd 400. Na Haiku 5.5
+   odwrotnie: `thinking: {type: "disabled"}` + `effort: "medium"` (`between_tools`
+   to tam 400). Oba modele rozumują, gdy parametr pominąć — także klasyfikator
+   i streszczenia scrapera muszą brać ustawienia z `reasoningParams()`. Parametry wybiera wyłącznie `reasoningParams()`
    w `src/lib/ai/client.ts`, identyczne w każdej rundzie pętli narzędzi
    (szczegóły: `20-migracja-sonnet-5-5.md`).
    W rozmowie z wczytaną dokumentacją podział jest taki: **wyszukiwanie faktu
