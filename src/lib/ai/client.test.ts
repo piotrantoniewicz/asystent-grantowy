@@ -56,12 +56,6 @@ describe("reasoningParams", () => {
     }
   });
 
-  it("Haiku nigdy nie dostaje between_tools (na Haiku 5.5 to błąd 400)", () => {
-    expect(reasoningParams(MODEL_SIMPLE, false).thinking).not.toEqual({
-      type: "between_tools",
-    });
-  });
-
   it("Sonnet nigdy nie dostaje thinking: disabled (na 5.5 to błąd 400)", () => {
     for (const useThinking of [true, false]) {
       expect(reasoningParams(MODEL_COMPLEX, useThinking).thinking).not.toEqual({

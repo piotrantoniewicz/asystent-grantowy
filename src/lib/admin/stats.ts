@@ -5,9 +5,14 @@ import { prisma } from "@/lib/db";
 // w bazie mają je w `modelUsed`.
 // `cacheRead` to mnożnik ceny wejścia przy odczycie z cache — różny dla modeli
 // (Sonnet 5.5: 0,05×, pozostałe 0,1×).
-// Haiku 5.5 ma dwa cenniki: do 100 tys. tokenów w prompcie (tu) i drożej powyżej
-// ($0,50 / $2,50). Haiku dostaje tylko mały prompt (tryb `ondemand`, zasada 5
-// w CLAUDE.md), więc liczymy po tańszym.
+// Haiku 5.5 ma dwa cenniki: do 100 tys. tokenów w prompcie (tu) i 5× drożej
+// powyżej ($0,50 / $2,50). Liczymy zawsze po tańszym — baza trzyma tylko sumy
+// tokenów, więc nie da się wskazać pojedynczych dużych zapytań. Większość zapytań
+// do Haiku jest mała, ale próg BYWA przekraczany: długie rozmowy bez dokumentacji
+// (do 100 tys. znaków historii + 50 tys. znaków pytania idą na Haiku, gdy
+// klasyfikator uzna pytanie za proste) oraz kilka rund narzędzi w trybie
+// `ondemand` (wyniki narzędzi kumulują się w prompcie). Dla takich zapytań panel
+// ZANIŻA koszt Haiku — traktuj tę kwotę jako dolną granicę.
 const PRICING_USD_PER_MTOK: Record<
   string,
   { input: number; output: number; cacheRead: number }

@@ -23,6 +23,9 @@ if (process.env.NODE_ENV !== "production") {
 export const MODEL_SIMPLE = "claude-haiku-5-5";
 export const MODEL_COMPLEX = "claude-sonnet-5-5";
 
+/** Jedyne modele, z którymi rozmawia aplikacja — patrz `reasoningParams`. */
+export type AiModel = typeof MODEL_SIMPLE | typeof MODEL_COMPLEX;
+
 /**
  * Wysiłek Sonneta 5.5 (`output_config.effort`). Decyzja właściciela z 2026-09-28:
  * `medium` — dokumentacja Anthropic poleca go do pracy z narzędziami, a tryb
@@ -49,26 +52,36 @@ export const HAIKU_EFFORT = "medium" as const;
  *
  * Haiku 5.5 domyślnie rozumuje (jak Sonnet 5.5), więc wyłączenie trzeba wysłać
  * wprost: `disabled` (dozwolone przy effort low/medium/high; `between_tools`
- * to błąd 400 — ma go tylko Sonnet 5.5). Bez tego klasyfikator z `max_tokens: 20`
+ * to błąd 400 — ma go tylko Sonnet 5.5). Bez tego klasyfikator z `max_tokens: 50`
  * zużyłby limit na rozumowanie i nie zwrócił odpowiedzi.
+ *
+ * Typ `AiModel` zamiast `string`: każdy model ma inne dozwolone ustawienia, więc
+ * nowy model (albo zmiana MODEL_COMPLEX) musi tu dostać własną gałąź — inaczej
+ * kompilator zgłosi błąd, zamiast po cichu wysłać ustawienia Haiku (błąd 400).
  *
  * Ta sama funkcja musi obsłużyć KAŻDĄ rundę pętli narzędzi — parametry
  * nie mogą się zmieniać w trakcie jednej odpowiedzi.
  */
 export function reasoningParams(
-  model: string,
+  model: AiModel,
   useThinking: boolean,
 ): Pick<Anthropic.MessageCreateParams, "thinking" | "output_config"> {
-  if (model !== MODEL_COMPLEX) {
-    return {
-      thinking: { type: "disabled" },
-      output_config: { effort: HAIKU_EFFORT },
-    };
+  switch (model) {
+    case MODEL_SIMPLE:
+      return {
+        thinking: { type: "disabled" },
+        output_config: { effort: HAIKU_EFFORT },
+      };
+    case MODEL_COMPLEX:
+      return {
+        thinking: useThinking ? { type: "adaptive" } : { type: "between_tools" },
+        output_config: { effort: SONNET_EFFORT },
+      };
+    default: {
+      const unknownModel: never = model;
+      throw new Error(`reasoningParams: brak ustawień dla modelu ${unknownModel}`);
+    }
   }
-  return {
-    thinking: useThinking ? { type: "adaptive" } : { type: "between_tools" },
-    output_config: { effort: SONNET_EFFORT },
-  };
 }
 
 // Komunikat pokazywany użytkownikowi, gdy usługa AI odmawia z powodu ustawień

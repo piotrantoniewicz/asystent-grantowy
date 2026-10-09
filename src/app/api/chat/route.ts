@@ -14,6 +14,7 @@ import {
   AI_CONFIG_ERROR_MESSAGE,
   anthropic,
   isAiConfigError,
+  type AiModel,
   MODEL_COMPLEX,
   MODEL_SIMPLE,
   reasoningParams,
@@ -187,7 +188,7 @@ export async function POST(request: Request) {
     );
   }
 
-  let model: string;
+  let model: AiModel;
   let stream: ReturnType<typeof anthropic.messages.stream>;
   let contextMs = 0;
   let contextChars = 0;
@@ -338,8 +339,11 @@ export async function POST(request: Request) {
     // 32k tokenów ≈ 24 tys. słów — z zapasem starcza na najdłuższy wniosek, a razem
     // z kontekstem mieści się w oknie 200k (patrz komentarz przy MAX_HISTORY_CHARS).
     // Pytanie faktograficzne („do kiedy nabór?") tyle nie potrzebuje.
+    // Haiku: 3072, a nie 2048 jak na Haiku 4.5 — Haiku 5.5 ma nowszy tokenizer
+    // (ten sam tekst ≈ 30% więcej tokenów), więc przy 2048 odpowiedzi mieszczące
+    // się dawniej (np. pełna lista załączników) byłyby ucinane w pół zdania.
     maxTokens =
-      modelClass === "SIMPLE" ? 2048 : looksLikeWritingTask(messageText) ? 32_000 : 4096;
+      modelClass === "SIMPLE" ? 3072 : looksLikeWritingTask(messageText) ? 32_000 : 4096;
 
     // UWAGA do `cache_control` niżej: domyślne 5 minut. Dopisanie `ttl: "1h"`
     // podnosi cenę zapisu do cache z 1,25× na 2× ceny wejścia i WYMAGA

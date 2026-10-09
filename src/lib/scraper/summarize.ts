@@ -13,7 +13,9 @@ export async function summarizeScrape(
 
   const message = await anthropic.messages.create({
     model: MODEL_SIMPLE,
-    max_tokens: 1024,
+    // 1536, a nie 1024 jak na Haiku 4.5 — nowszy tokenizer Haiku 5.5 liczy ten
+    // sam tekst jako ≈ 30% więcej tokenów, więc streszczenie mogłoby się urwać.
+    max_tokens: 1536,
     // Haiku 5.5 bez tego rozumowałby domyślnie i zjadał limit `max_tokens`.
     ...reasoningParams(MODEL_SIMPLE, false),
     messages: [

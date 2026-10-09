@@ -61,7 +61,7 @@ odpowiedź).
 
 | Klasa | Model | Parametry |
 |---|---|---|
-| SIMPLE | `claude-haiku-5-5` | `max_tokens: 2048`, bez rozumowania: `thinking: {type: "disabled"}` + `output_config.effort: "medium"` |
+| SIMPLE | `claude-haiku-5-5` | `max_tokens: 3072` (na Haiku 4.5 było 2048 — nowszy tokenizer liczy ten sam tekst jako ~30% więcej tokenów), bez rozumowania: `thinking: {type: "disabled"}` + `output_config.effort: "medium"` |
 | COMPLEX | `claude-sonnet-5-5` | `max_tokens: 32000` (pytanie wytwórcze) albo `4096` (faktograficzne), streaming, **bez rozumowania**: `thinking: {type: "between_tools"}` + `output_config.effort: "medium"` |
 
 Oba wywołania dostają **ten sam pełny kontekst**: prompt systemowy + zeskrapowane

@@ -256,8 +256,10 @@ export async function classifyQuestion(
       // tokenizer (ten sam tekst ≈ 30% więcej tokenów niż na Haiku 4.5).
       max_tokens: 50,
       // Rozumowanie wyłączone wprost — na Haiku 5.5 jest domyślnie włączone
-      // i przy tak małym `max_tokens` zabrałoby miejsce na odpowiedź.
-      thinking: reasoning.thinking,
+      // i przy tak małym `max_tokens` zabrałoby miejsce na odpowiedź. Całe
+      // `reasoningParams()` (nie wybrane pola), żeby nowe ustawienie dodane tam
+      // trafiło też tutaj; `output_config` łączymy z formatem odpowiedzi.
+      ...reasoning,
       messages: [
         {
           role: "user",
